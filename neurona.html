@@ -24,13 +24,20 @@
             border-radius: 12px;
             box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
         }
-        h1, h2, h3 {
+        h1, h2, h3, h4 {
             color: #2c3e50;
             border-bottom: 2px solid #3498db;
             padding-bottom: 10px;
             margin-top: 30px;
         }
         h1 { text-align: center; font-size: 2.2em; }
+        h4 { 
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            border-bottom: none; 
+            padding-bottom: 0;
+            text-align: center;
+        }
         code {
             background-color: #e9ecef;
             padding: 3px 6px;
@@ -165,6 +172,21 @@
             justify-content: center;
             gap: 20px;
         }
+        
+        /* --- NUEVO: Slider de Umbral --- */
+        .threshold-slider-container {
+            margin: 20px 0;
+            font-size: 0.9em;
+            color: #555;
+        }
+        .threshold-slider-container label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .threshold-slider-container input[type="range"] {
+            max-width: 100%;
+        }
 
         /* --- Visualización del Entrenamiento --- */
         #training-visualization {
@@ -185,6 +207,31 @@
             border-radius: 4px;
             text-align: left;
         }
+        
+        /* --- NUEVO: Matriz de Confusión --- */
+        #confusion-matrix-container {
+            margin-top: 15px;
+        }
+        .confusion-matrix {
+            width: 100%;
+            min-width: 0;
+            text-align: center;
+        }
+        .confusion-matrix th {
+            background-color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .confusion-matrix td {
+            font-size: 1.4em;
+            font-weight: bold;
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #fdfdfd;
+        }
+        /* Celdas de la matriz */
+        .confusion-matrix #cm-rr { background-color: #e8f5e9; color: #2e7d32; } /* TP */
+        .confusion-matrix #cm-ra { background-color: #ffebee; color: #c62828; } /* FN */
+        .confusion-matrix #cm-ar { background-color: #fff8e1; color: #f57f17; } /* FP */
+        .confusion-matrix #cm-aa { background-color: #e3f2fd; color: #1565c0; } /* TN */
 
         /* --- Estilos de la Animación de la Neurona --- */
         .neuron-diagram {
@@ -452,12 +499,39 @@
                 </div>
 
                 <div id="feedback-message"></div>
+                
                 <div id="epoch-summary" class="epoch-summary"></div>
-            </div>
+                
+                <div id="confusion-matrix-container">
+                    <h4>Matriz de Confusión (Datos de Entrenamiento)</h4>
+                    <table class="confusion-matrix">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th>Predicción: ROJO</th>
+                                <th>Predicción: AZUL</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <th>Real: ROJO</th>
+                                <td id="cm-rr">0</td> <td id="cm-ra">0</td> </tr>
+                            <tr>
+                                <th>Real: AZUL</th>
+                                <td id="cm-ar">0</td> <td id="cm-aa">0</td> </tr>
+                        </tbody>
+                    </table>
+                </div>
+                </div>
             
             <div class="prediction-controls">
                 <h3>2. ¡Prueba la neurona en vivo!</h3>
                 <p>Mueve el selector y mira la predicción con los pesos actuales.</p>
+                
+                <div class="threshold-slider-container">
+                    <label for="thresholdSlider">Umbral de Decisión (Matriz): <span id="thresholdValue">0.00</span></label>
+                    <input type="range" id="thresholdSlider" min="-2.0" max="2.0" step="0.05" value="0.0">
+                </div>
                 <div class="prediction-box">
                     <label for="colorPicker">Elige un color:</label>
                     <input type="color" id="colorPicker" value="#800080"> </div>
@@ -534,6 +608,10 @@ async function train() {
             // Pausa controlada por el slider
             // ... (código de pausa) ...
         }
+    
+    // *** ACTUALIZACIÓN DE MATRIZ AL FINAL DE LA ÉPOCA ***
+    updateConfusionMatrix(); 
+    
     // ... (finalización del entrenamiento) ...
     isTraining = false;
     trainButton.disabled = false;
@@ -564,7 +642,7 @@ function predict() {
         sum += inputs[j] * weights[j];
     }
     
-    // 2. FUNCIÓN DE ACTIVACIÓN
+    // 2. FUNCIÓN DE ACTIVACIÓN (Umbral en 0 para predicción en vivo)
     const prediction = sum >= 0 ? 1 : -1;
     
     // 3. CÁLCULO DE CONFIANZA
@@ -589,10 +667,6 @@ function predict() {
     <script>
         // --- DATOS DE ENTRENAMIENTO ---
         // Usamos 1 para ROJO y -1 para AZUL.
-        // NOTA: He quitado Púrpura y Rosa Fuerte, que son muy ambiguos
-        // y hacían que el modelo simple (lineal) no pudiera converger.
-        // Esto es didáctico: el perceptrón solo funciona si los datos
-        // son "linealmente separables".
         const datos = [
             // --- Colores Rojos (Etiqueta: 1) ---
             { name: 'Rojo', r: 255, g: 0, b: 0, label: 1, hex: '#FF0000' },
@@ -600,7 +674,6 @@ function predict() {
             { name: 'Salmón', r: 250, g: 128, b: 114, label: 1, hex: '#FA8072' },
             { name: 'Tomate', r: 255, g: 99, b: 71, label: 1, hex: '#FF6347' },
             { name: 'Marrón', r: 165, g: 42, b: 42, label: 1, hex: '#A52A2A' },
-            // { name: 'Rosa Fuerte', r: 255, g: 20, b: 147, label: 1, hex: '#FF1493' }, // Muy ambiguo
             { name: 'Naranja rojizo', r: 255, g: 69, b: 0, label: 1, hex: '#FF4500' },
             { name: 'Rojo Ladrillo', r: 178, g: 34, b: 34, label: 1, hex: '#B22222' },
             { name: 'Rojo Indio', r: 205, g: 92, b: 92, label: 1, hex: '#CD5C5C' },
@@ -610,11 +683,8 @@ function predict() {
             // --- Colores Azules (Etiqueta: -1) ---
             { name: 'Azul', r: 0, g: 0, b: 255, label: -1, hex: '#0000FF' },
             { name: 'Azul Marino', r: 0, g: 0, b: 128, label: -1, hex: '#000080' },
-            // { name: 'Cian', r: 0, g: 255, b: 255, label: -1, hex: '#00FFFF' }, // El verde alto confunde
             { name: 'Acero', r: 70, g: 130, b: 180, label: -1, hex: '#4682B4' },
-            // { name: 'Púrpura', r: 128, g: 0, b: 128, label: -1, hex: '#800080' }, // Muy ambiguo
             { name: 'Azul Real', r: 65, g: 105, b: 225, label: -1, hex: '#4169E1' },
-            // { name: 'Turquesa', r: 64, g: 224, b: 208, label: -1, hex: '#40E0D0' }, // El verde alto confunde
             { name: 'Celeste', r: 135, g: 206, b: 235, label: -1, hex: '#87CEEB' },
             { name: 'Medianoche', r: 25, g: 25, b: 112, label: -1, hex: '#191970' },
             { name: 'Azul Dodger', r: 30, g: 144, b: 255, label: -1, hex: '#1E90FF' },
@@ -624,6 +694,7 @@ function predict() {
         // --- PARÁMETROS DEL PERCEPTRÓN ---
         let weights = [(Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2];
         let bias = (Math.random() - 0.5) * 2;
+        let decisionThreshold = 0.0; // <-- NUEVA variable para el umbral
         const learningRate = 0.05;
         const maxWeightDisplay = 2.0;
         const maxConfidenceSum = 2.5;
@@ -654,12 +725,29 @@ function predict() {
         const feedbackMessage = document.getElementById('feedback-message');
         const epochSummary = document.getElementById('epoch-summary');
 
+        // --- NUEVAS Referencias (Matriz y Umbral) ---
+        const thresholdSlider = document.getElementById('thresholdSlider');
+        const thresholdValue = document.getElementById('thresholdValue');
+        const cmRR = document.getElementById('cm-rr'); // TP (Real Rojo, Pred Rojo)
+        const cmRA = document.getElementById('cm-ra'); // FN (Real Rojo, Pred Azul)
+        const cmAR = document.getElementById('cm-ar'); // FP (Real Azul, Pred Rojo)
+        const cmAA = document.getElementById('cm-aa'); // TN (Real Azul, Pred Azul)
+
         // --- INICIALIZACIÓN DE LA PÁGINA ---
         document.addEventListener('DOMContentLoaded', () => {
             populateTables();
             trainButton.addEventListener('click', train);
             colorPicker.addEventListener('input', predict);
+            
+            // --- NUEVO Listener para el slider de umbral ---
+            thresholdSlider.addEventListener('input', () => {
+                decisionThreshold = parseFloat(thresholdSlider.value);
+                thresholdValue.innerText = decisionThreshold.toFixed(2);
+                updateConfusionMatrix(); // Actualiza la matriz al mover el slider
+            });
+            
             updateWeightBars();
+            updateConfusionMatrix(); // <-- Llama para inicializar la matriz
             predict();
         });
 
@@ -764,6 +852,43 @@ function predict() {
                 feedbackMessage.className = 'correct-message';
             }
         }
+        
+        // --- NUEVA FUNCIÓN: Actualizar Matriz de Confusión ---
+        function updateConfusionMatrix() {
+            let tp = 0, fn = 0, fp = 0, tn = 0;
+            
+            // Recorremos todos los datos de entrenamiento
+            for (const data of datos) {
+                const inputs = [data.r / 255, data.g / 255, data.b / 255];
+                
+                // 1. Calcular suma ponderada con pesos ACTUALES
+                let sum = bias;
+                for (let j = 0; j < inputs.length; j++) {
+                    sum += inputs[j] * weights[j];
+                }
+                
+                // 2. Aplicar el UMBRAL DEL SLIDER
+                const prediction = sum >= decisionThreshold ? 1 : -1;
+                const label = data.label;
+                
+                // 3. Clasificar en la matriz
+                if (label === 1 && prediction === 1) {
+                    tp++; // Verdadero Positivo (Real: R, Pred: R)
+                } else if (label === 1 && prediction === -1) {
+                    fn++; // Falso Negativo (Real: R, Pred: A)
+                } else if (label === -1 && prediction === 1) {
+                    fp++; // Falso Positivo (Real: A, Pred: R)
+                } else if (label === -1 && prediction === -1) {
+                    tn++; // Verdadero Negativo (Real: A, Pred: A)
+                }
+            }
+            
+            // 4. Actualizar la tabla HTML
+            cmRR.innerText = tp;
+            cmRA.innerText = fn;
+            cmAR.innerText = fp;
+            cmAA.innerText = tn;
+        }
 
         // --- CÓDIGO DEL PERCEPTRÓN (CORREGIDO) ---
         
@@ -821,6 +946,7 @@ function predict() {
                     }
                     
                     // 4. VISUALIZACIÓN
+                    // (La predicción visual siempre usa umbral 0)
                     const predictionForDisplay = sum >= 0 ? 1 : -1;
                     await animateTrainingStep(data, inputs, sum, predictionForDisplay, misclassified);
                     
@@ -834,6 +960,9 @@ function predict() {
                         await new Promise(resolve => setTimeout(resolve, 5)); // Micro-pausa
                     }
                 } // Fin del bucle for (colores)
+                
+                // --- NUEVO: Actualizar matriz al final de la época ---
+                updateConfusionMatrix();
 
                 // Comprobar estabilidad
                 let currentWeightsSumDiff = weights.reduce((acc, w, idx) => acc + Math.abs(w - initialWeightsInEpoch[idx]), 0);
@@ -877,6 +1006,7 @@ function predict() {
                 sum += inputs[j] * weights[j];
             }
             
+            // La predicción en vivo SIEMPRE usa umbral 0
             const prediction = sum >= 0 ? 1 : -1;
             const confidence = calculateConfidence(sum);
             
