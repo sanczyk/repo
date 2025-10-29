@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entendiendo el Perceptrón: Visualización Avanzada</title>
+    <style>
+        /* Estilos generales */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f4f7f9;
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            max-width: 1000px; 
+            width: 100%;
+            background-color: #fff;
+            padding: 25px 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-top: 30px;
+        }
+        h1 { text-align: center; font-size: 2.2em; }
+        code {
+            background-color: #e9ecef;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            margin-bottom: 20px;
+        }
+        
+        /* Estilos para las tablas de datos */
+        .table-container {
+            display: flex;
+            gap: 20px;
+            justify-content: space-around;
+            flex-wrap: wrap;
+        }
+        table {
+            width: 48%; min-width: 300px;
+            border-collapse: collapse;
+            margin-top: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #3498db; color: white; font-weight: bold; }
+        tr:last-child td { border-bottom: none; }
+        .rojo-header { background-color: #e74c3c; }
+        .azul-header { background-color: #3498db; }
+        .color-swatch {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 1px solid #ccc;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+
+        /* --- Panel Interactivo --- */
+        .interactive-panel {
+            background-color: #ecf0f1;
+            border: 1px solid #bdc3c7;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 25px;
+            display: grid;
+            grid-template-areas:
+                "train"
+                "visual"
+                "predict";
+            gap: 20px;
+        }
+        
+        /* Controles de Entrenamiento */
+        .train-controls {
+            grid-area: train;
+            text-align: center;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            font-size: 1em;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+        button:hover { background-color: #2980b9; }
+        button:active { transform: scale(0.98); }
+        button:disabled { background-color: #95a5a6; cursor: not-allowed; }
+        
+        /* Slider de Velocidad */
+        .speed-slider-container {
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        input[type="range"] {
+            flex-grow: 1;
+            max-width: 300px;
+            cursor: pointer;
+        }
+
+        /* Controles de Predicción (Siempre activos) */
+        .prediction-controls {
+            grid-area: predict;
+            text-align: center;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .prediction-controls h3 { margin-top: 0; }
+        input[type="color"] {
+            width: 80px;
+            height: 40px;
+            border: none;
+            cursor: pointer;
+            vertical-align: middle;
+            margin-left: 10px;
+        }
+        #prediction-result {
+            font-weight: bold;
+            font-size: 1.5em;
+            transition: background-color 0.3s, color 0.3s;
+            height: 60px;
+            line-height: 60px;
+            margin-top: 20px;
+            border-radius: 6px;
+        }
+        #prediction-result .confidence-span {
+            font-size: 0.8em;
+            opacity: 0.85;
+            margin-left: 5px;
+        }
+        .prediction-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        /* --- Visualización del Entrenamiento --- */
+        #training-visualization {
+            grid-area: visual;
+            background: #fdfdfd;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        #epoch-summary {
+            font-size: 0.9em;
+            padding: 10px;
+            background-color: #f0f8ff;
+            border-left: 5px solid #3498db;
+            border-radius: 4px;
+            text-align: left;
+        }
+
+        /* --- Estilos de la Animación de la Neurona --- */
+        .neuron-diagram {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            align-items: center;
+            justify-items: center;
+            gap: 20px;
+            margin: 20px 0;
+            min-height: 250px;
+        }
+
+        /* Círculos grandes de Entrada y Salida */
+        .io-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            border: 4px solid #fff;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+            transition: background-color 0.3s;
+            text-align: center;
+            padding: 5px;
+        }
+        .io-circle span {
+            font-size: 0.8em;
+            font-weight: normal;
+            display: block;
+            margin-top: 5px;
+        }
+        #current-color-swatch { background-color: #ccc; }
+        #neuron-prediction { background-color: #ccc; }
+        #neuron-prediction.predict-red { background-color: #e74c3c; }
+        #neuron-prediction.predict-blue { background-color: #3498db; }
+        #train-prediction-confidence {
+            font-size: 0.9em !important;
+            font-weight: bold !important;
+        }
+
+        /* "Cerebro" de la Neurona (Centro) */
+        .neuron-guts {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+        }
+        
+        /* Barras de Entrada (R, G, B) */
+        .input-bar-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .input-bar-track {
+            flex-grow: 1;
+            height: 12px;
+            background-color: #e9ecef;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .input-bar-value {
+            height: 100%;
+            width: 0%; /* Se setea con JS */
+            border-radius: 6px;
+            transition: width 0.2s ease-out;
+        }
+        #input-bar-R .input-bar-value { background-color: #e74c3c; }
+        #input-bar-G .input-bar-value { background-color: #2ecc71; }
+        #input-bar-B .input-bar-value { background-color: #3498db; }
+
+        /* Barras de Pesos (wR, wG, wB) */
+        .weight-bar-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            font-size: 0.9em;
+            position: relative; /* Para el texto flotante */
+        }
+        .weight-bar-track {
+            flex-grow: 1;
+            height: 16px;
+            background-color: #e9ecef;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        .weight-bar-track::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: #bdc3c7;
+            transform: translateX(-1px);
+        }
+        .weight-bar-value {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            background-color: #9b59b6;
+            transition: all 0.2s ease-out;
+        }
+        #weight-value-text {
+            width: 50px; /* Ancho fijo para alinear */
+            text-align: right;
+        }
+
+        /* Información de Sesgo y Suma */
+        .bias-sum-container {
+            display: flex;
+            justify-content: space-around;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+        .bias-sum-container div {
+            position: relative; /* Para el texto flotante */
+        }
+
+        /* --- Texto Flotante (Floating Combat Text) --- */
+        @keyframes float-up-fade {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); } 
+        }
+        .floating-text {
+            position: absolute;
+            top: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.1em;
+            font-weight: bold;
+            animation: float-up-fade 2.4s ease-out forwards;
+            pointer-events: none;
+            text-shadow: 0 0 3px #fff;
+        }
+        .floating-text.positive { color: #2ecc71; }
+        .floating-text.negative { color: #e74c3c; }
+        
+        /* Mensaje de Feedback (Correcto/Error) */
+        #feedback-message {
+            min-height: 25px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .error-message { color: #e74c3c; }
+        .correct-message { color: #2ecc71; }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🧠 Entendiendo el Perceptrón: Visualización Interactiva</h1>
+
+        <p>
+            Esta página te muestra cómo un <strong>perceptrón</strong> (una neurona artificial) aprende a tomar decisiones. Usaremos un clasificador de colores como ejemplo. La neurona aprenderá a distinguir entre colores "Rojos" y "Azules" a partir de sus valores <strong>R, G y B</strong>.
+        </p>
+
+        <h2>El Ejemplo: Clasificador Rojo vs. Azul</h2>
+        <p>
+            Tenemos un conjunto de colores etiquetados. El objetivo de la neurona es aprender a ajustar sus <strong>Pesos (Weights)</strong> y su <strong>Sesgo (Bias)</strong> para que, al darle un color, pueda predecir correctamente si pertenece al grupo Rojo (<code>1</code>) o al grupo Azul (<code>-1</code>).
+        </p>
+
+        <div class="table-container">
+            <div id="rojos-container">
+                <h3 style="text-align: center;">🎨 Colores Rojos (Etiqueta: 1)</h3>
+                <table id="rojos-table">
+                    <thead><tr><th class="rojo-header">Color</th><th class="rojo-header">Nombre</th><th class="rojo-header">RGB</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div id="azules-container">
+                <h3 style="text-align: center;">🎨 Colores Azules (Etiqueta: -1)</h3>
+                <table id="azules-table">
+                    <thead><tr><th class="azul-header">Color</th><th class="azul-header">Nombre</th><th class="azul-header">RGB</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="interactive-panel">
+
+            <div class="train-controls">
+                <h2>1. Panel de Entrenamiento</h2>
+                <button id="trainButton">Entrenar la Neurona</button>
+                <div class="speed-slider-container">
+                    <span>Rápido (0s)</span>
+                    <input type="range" id="speedSlider" min="0" max="3000" step="100" value="1500">
+                    <span>Lento (3s)</span>
+                </div>
+            </div>
+
+            <div id="training-visualization" style="display: none;">
+                <h4>Progreso del Entrenamiento (Época <span id="current-epoch">0</span>)</h4>
+                
+                <div class="neuron-diagram">
+                    
+                    <div class"io-display">
+                        <div class="io-circle" id="current-color-swatch">
+                            Entrada
+                            <span id="current-color-name">N/A</span>
+                        </div>
+                        <div style="text-align: center; font-weight: bold; margin-top: 5px;">Entrada Real</div>
+                    </div>
+
+                    <div class="neuron-guts">
+                        <div class="input-bar-container" id="input-bar-R">
+                            <span style="color: #e74c3c;">R</span>
+                            <div class="input-bar-track"><div class="input-bar-value"></div></div>
+                        </div>
+                        <div class="input-bar-container" id="input-bar-G">
+                            <span style="color: #2ecc71;">G</span>
+                            <div class="input-bar-track"><div class="input-bar-value"></div></div>
+                        </div>
+                        <div class="input-bar-container" id="input-bar-B">
+                            <span style="color: #3498db;">B</span>
+                            <div class="input-bar-track"><div class="input-bar-value"></div></div>
+                        </div>
+                        
+                        <hr style="border: 0; border-top: 1px dashed #aaa; margin: 5px 0;">
+
+                        <div class="weight-bar-container" id="weight-bar-R-container">
+                            <span>wR</span>
+                            <div class="weight-bar-track"><div class="weight-bar-value" id="weight-bar-R"></div></div>
+                            <span id="weight-value-R" class="weight-value-text">0.00</span>
+                        </div>
+                        <div class="weight-bar-container" id="weight-bar-G-container">
+                            <span>wG</span>
+                            <div class="weight-bar-track"><div class="weight-bar-value" id="weight-bar-G"></div></div>
+                            <span id="weight-value-G" class="weight-value-text">0.00</span>
+                        </div>
+                        <div class="weight-bar-container" id="weight-bar-B-container">
+                            <span>wB</span>
+                            <div class="weight-bar-track"><div class="weight-bar-value" id="weight-bar-B"></div></div>
+                            <span id="weight-value-B" class="weight-value-text">0.00</span>
+                        </div>
+                        
+                        <div class="bias-sum-container">
+                            <div id="bias-container"><strong>Sesgo (Bias):</strong> <span id="bias-value">0.00</span></div>
+                            <div><strong>Suma:</strong> <span id="sum-value">0.00</span></div>
+                        </div>
+                    </div>
+
+                    <div class"io-display">
+                        <div class="io-circle" id="neuron-prediction">
+                            ?
+                            <span id="train-prediction-confidence">(?)</span>
+                        </div>
+                        <div style="text-align: center; font-weight: bold; margin-top: 5px;">Predicción Neurona</div>
+                    </div>
+                </div>
+
+                <div id="feedback-message"></div>
+                <div id="epoch-summary" class="epoch-summary"></div>
+            </div>
+            
+            <div class="prediction-controls">
+                <h3>2. ¡Prueba la neurona en vivo!</h3>
+                <p>Mueve el selector y mira la predicción con los pesos actuales.</p>
+                <div class="prediction-box">
+                    <label for="colorPicker">Elige un color:</label>
+                    <input type="color" id="colorPicker" value="#800080"> </div>
+                <div id="prediction-result">Predicción: ?</div>
+            </div>
+
+        </div>
+
+        <h2>Código Fuente Clave (Corregido)</h2>
+        <p>El "cerebro" de este ejemplo está en estas funciones. Fíjate en el cambio en <code>train()</code>, donde ya no usamos <code>error = label - prediction</code>, sino la regla de aprendizaje estándar del perceptrón.</p>
+        
+        <h3>Función de Entrenamiento (<code>train()</code>)</h3>
+        <pre><code class="language-javascript">
+// Variable global para evitar entrenamientos simultáneos
+let isTraining = false;
+
+async function train() {
+    if (isTraining) return; // Salir si ya está entrenando
+    isTraining = true;
+    trainButton.disabled = true;
+    trainingVisualization.style.display = 'block';
+    
+    // ... (criterios de parada y bucle 'while' principal) ...
+
+        // Recorremos cada color en nuestros datos de entrenamiento
+        for (const data of datos) {
+            const inputs = [data.r / 255, data.g / 255, data.b / 255];
+            
+            // 1. CÁLCULO DE LA SUMA PONDERADA
+            let sum = bias;
+            for (let j = 0; j < inputs.length; j++) {
+                sum += inputs[j] * weights[j];
+            }
+            
+            // 2. FUNCIÓN DE ACTIVACIÓN (implícita)
+            // La predicción es 1 si sum > 0, -1 si sum < 0
+            
+            // 3. COMPROBACIÓN DE ERROR Y AJUSTE (Regla de Perceptrón Estándar)
+            // Se comprueba si la predicción es incorrecta:
+            // - Si label=1 (Rojo) y sum < 0 (predice Azul) -> (1 * sum) es negativo -> ERROR
+            // - Si label=-1 (Azul) y sum > 0 (predice Rojo) -> (-1 * sum) es negativo -> ERROR
+            // - Si los signos coinciden, (label * sum) es positivo -> ACIERTO
+            
+            let misclassified = (sum * data.label <= 0);
+            
+            if (misclassified) {
+                epochAdjustments++;
+                
+                // 4. AJUSTE DE PESOS Y SESGO
+                // El ajuste es (label * input * tasa_aprendizaje)
+                // (label es 1 o -1, lo que "empuja" los pesos en la dirección correcta)
+                
+                for (let j = 0; j < weights.length; j++) {
+                    // El "delta" o cambio es data.label (1 o -1)
+                    const deltaWeight = data.label * inputs[j] * learningRate;
+                    showFloatingText(document.getElementById(`weight-bar-${['R','G','B'][j]}-container`), deltaWeight);
+                    weights[j] += deltaWeight;
+                }
+                // El sesgo también se ajusta
+                const deltaBias = data.label * learningRate;
+                showFloatingText(document.getElementById('bias-container'), deltaBias);
+                bias += deltaBias;
+            } else {
+                epochCorrectPredictions++;
+            }
+
+            // --- VISUALIZACIÓN DETALLADA DEL PASO ---
+            // (La predicción visual se calcula aquí solo para mostrarla)
+            const predictionForDisplay = sum >= 0 ? 1 : -1;
+            await animateTrainingStep(data, inputs, sum, predictionForDisplay, misclassified);
+            
+            predict(); // Actualiza la predicción en vivo
+
+            // Pausa controlada por el slider
+            // ... (código de pausa) ...
+        }
+    // ... (finalización del entrenamiento) ...
+    isTraining = false;
+    trainButton.disabled = false;
+}
+        </code></pre>
+        
+        <h3>Función de Predicción (<code>predict()</code>) con Confianza</h3>
+        <pre><code class="language-javascript">
+// Valor de "suma" que consideramos 100% de confianza
+const maxConfidenceSum = 2.5;
+
+// Calcula un porcentaje de confianza basado en la magnitud de la suma
+function calculateConfidence(sum) {
+    // abs(sum) es la "distancia a 0". Más grande = más confianza.
+    const confidence = (Math.abs(sum) / maxConfidenceSum) * 100;
+    // No puede ser más de 100%
+    return Math.min(100, confidence).toFixed(0);
+}
+
+// Función para predecir un nuevo color (se llama en tiempo real)
+function predict() {
+    // ... (obtener r, g, b del colorPicker) ...
+    const inputs = [r / 255, g / 255, b / 255];
+
+    // 1. CÁLCULO DE LA SUMA PONDERADA
+    let sum = bias;
+    for (let j = 0; j < inputs.length; j++) {
+        sum += inputs[j] * weights[j];
+    }
+    
+    // 2. FUNCIÓN DE ACTIVACIÓN
+    const prediction = sum >= 0 ? 1 : -1;
+    
+    // 3. CÁLCULO DE CONFIANZA
+    const confidence = calculateConfidence(sum);
+
+    // 4. MOSTRAR RESULTADO
+    const resultDiv = document.getElementById('prediction-result');
+    resultDiv.style.backgroundColor = hexColor;
+
+    if (prediction === 1) {
+        resultDiv.innerHTML = `Predicción: ROJO <span class="confidence-span">(${confidence}%)</span>`;
+        resultDiv.style.color = isColorDark(r, g, b) ? 'white' : 'black';
+    } else {
+        resultDiv.innerHTML = `Predicción: AZUL <span class="confidence-span">(${confidence}%)</span>`;
+        resultDiv.style.color = isColorDark(r, g, b) ? 'white' : 'black';
+    }
+}
+        </code></pre>
+
+    </div>
+
+    <script>
+        // --- DATOS DE ENTRENAMIENTO ---
+        // Usamos 1 para ROJO y -1 para AZUL.
+        // NOTA: He quitado Púrpura y Rosa Fuerte, que son muy ambiguos
+        // y hacían que el modelo simple (lineal) no pudiera converger.
+        // Esto es didáctico: el perceptrón solo funciona si los datos
+        // son "linealmente separables".
+        const datos = [
+            // --- Colores Rojos (Etiqueta: 1) ---
+            { name: 'Rojo', r: 255, g: 0, b: 0, label: 1, hex: '#FF0000' },
+            { name: 'Carmesí', r: 220, g: 20, b: 60, label: 1, hex: '#DC143C' },
+            { name: 'Salmón', r: 250, g: 128, b: 114, label: 1, hex: '#FA8072' },
+            { name: 'Tomate', r: 255, g: 99, b: 71, label: 1, hex: '#FF6347' },
+            { name: 'Marrón', r: 165, g: 42, b: 42, label: 1, hex: '#A52A2A' },
+            // { name: 'Rosa Fuerte', r: 255, g: 20, b: 147, label: 1, hex: '#FF1493' }, // Muy ambiguo
+            { name: 'Naranja rojizo', r: 255, g: 69, b: 0, label: 1, hex: '#FF4500' },
+            { name: 'Rojo Ladrillo', r: 178, g: 34, b: 34, label: 1, hex: '#B22222' },
+            { name: 'Rojo Indio', r: 205, g: 92, b: 92, label: 1, hex: '#CD5C5C' },
+            { name: 'Coral', r: 255, g: 127, b: 80, label: 1, hex: '#FF7F50' },
+            { name: 'Rojo Oscuro', r: 139, g: 0, b: 0, label: 1, hex: '#8B0000' },
+            
+            // --- Colores Azules (Etiqueta: -1) ---
+            { name: 'Azul', r: 0, g: 0, b: 255, label: -1, hex: '#0000FF' },
+            { name: 'Azul Marino', r: 0, g: 0, b: 128, label: -1, hex: '#000080' },
+            // { name: 'Cian', r: 0, g: 255, b: 255, label: -1, hex: '#00FFFF' }, // El verde alto confunde
+            { name: 'Acero', r: 70, g: 130, b: 180, label: -1, hex: '#4682B4' },
+            // { name: 'Púrpura', r: 128, g: 0, b: 128, label: -1, hex: '#800080' }, // Muy ambiguo
+            { name: 'Azul Real', r: 65, g: 105, b: 225, label: -1, hex: '#4169E1' },
+            // { name: 'Turquesa', r: 64, g: 224, b: 208, label: -1, hex: '#40E0D0' }, // El verde alto confunde
+            { name: 'Celeste', r: 135, g: 206, b: 235, label: -1, hex: '#87CEEB' },
+            { name: 'Medianoche', r: 25, g: 25, b: 112, label: -1, hex: '#191970' },
+            { name: 'Azul Dodger', r: 30, g: 144, b: 255, label: -1, hex: '#1E90FF' },
+            { name: 'Azul Cadete', r: 95, g: 158, b: 160, label: -1, hex: '#5F9EA0' }
+        ];
+
+        // --- PARÁMETROS DEL PERCEPTRÓN ---
+        let weights = [(Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2];
+        let bias = (Math.random() - 0.5) * 2;
+        const learningRate = 0.05;
+        const maxWeightDisplay = 2.0;
+        const maxConfidenceSum = 2.5;
+        let isTraining = false;
+
+        // --- REFERENCIAS A ELEMENTOS DE LA UI ---
+        const trainButton = document.getElementById('trainButton');
+        const colorPicker = document.getElementById('colorPicker');
+        const speedSlider = document.getElementById('speedSlider');
+        const trainingVisualization = document.getElementById('training-visualization');
+        const currentColorName = document.getElementById('current-color-name');
+        const currentColorSwatch = document.getElementById('current-color-swatch');
+        
+        // Referencias del "Cerebro"
+        const inputBarR = document.querySelector('#input-bar-R .input-bar-value');
+        const inputBarG = document.querySelector('#input-bar-G .input-bar-value');
+        const inputBarB = document.querySelector('#input-bar-B .input-bar-value');
+        const weightBarR = document.getElementById('weight-bar-R');
+        const weightBarG = document.getElementById('weight-bar-G');
+        const weightBarB = document.getElementById('weight-bar-B');
+        const weightValueR = document.getElementById('weight-value-R');
+        const weightValueG = document.getElementById('weight-value-G');
+        const weightValueB = document.getElementById('weight-value-B');
+        const biasValue = document.getElementById('bias-value');
+        const sumValue = document.getElementById('sum-value');
+        const neuronPrediction = document.getElementById('neuron-prediction');
+        const trainPredictionConfidence = document.getElementById('train-prediction-confidence');
+        const feedbackMessage = document.getElementById('feedback-message');
+        const epochSummary = document.getElementById('epoch-summary');
+
+        // --- INICIALIZACIÓN DE LA PÁGINA ---
+        document.addEventListener('DOMContentLoaded', () => {
+            populateTables();
+            trainButton.addEventListener('click', train);
+            colorPicker.addEventListener('input', predict);
+            updateWeightBars();
+            predict();
+        });
+
+        function populateTables() {
+            const rojosTbody = document.querySelector('#rojos-table tbody');
+            const azulesTbody = document.querySelector('#azules-table tbody');
+            datos.forEach(color => {
+                const row = document.createElement('tr');
+                const rgb = `${color.r}, ${color.g}, ${color.b}`;
+                row.innerHTML = `
+                    <td><div class="color-swatch" style="background-color: rgb(${rgb})"></div></td>
+                    <td>${color.name}</td>
+                    <td>${rgb}</td>
+                `;
+                if (color.label === 1) rojosTbody.appendChild(row);
+                else azulesTbody.appendChild(row);
+            });
+        }
+        
+        // --- FUNCIONES DE VISUALIZACIÓN ---
+        
+        function updateInputBars(inputs) {
+            inputBarR.style.width = (inputs[0] * 100) + '%';
+            inputBarG.style.width = (inputs[1] * 100) + '%';
+            inputBarB.style.width = (inputs[2] * 100) + '%';
+        }
+        
+        function updateWeightBars() {
+            [weights[0], weights[1], weights[2]].forEach((weight, i) => {
+                const bar = [weightBarR, weightBarG, weightBarB][i];
+                const text = [weightValueR, weightValueG, weightValueB][i];
+                
+                let scaledWeight = (weight / maxWeightDisplay) * 50;
+                scaledWeight = Math.max(-50, Math.min(50, scaledWeight)); 
+
+                if (scaledWeight > 0) {
+                    bar.style.left = '50%';
+                    bar.style.width = scaledWeight + '%';
+                    bar.style.backgroundColor = '#2ecc71';
+                } else {
+                    bar.style.left = (50 + scaledWeight) + '%';
+                    bar.style.width = -scaledWeight + '%';
+                    bar.style.backgroundColor = '#e74c3c';
+                }
+                text.innerText = weight.toFixed(3);
+            });
+            biasValue.innerText = bias.toFixed(3);
+        }
+
+        function showFloatingText(container, value) {
+            if (parseInt(speedSlider.value, 10) < 100 || Math.abs(value) < 0.0001) return;
+
+            const textEl = document.createElement('div');
+            textEl.className = 'floating-text';
+            if (value > 0) {
+                textEl.innerText = `+${value.toFixed(4)}`;
+                textEl.classList.add('positive');
+            } else {
+                textEl.innerText = `${value.toFixed(4)}`;
+                textEl.classList.add('negative');
+            }
+            
+            container.appendChild(textEl);
+            textEl.addEventListener('animationend', () => textEl.remove());
+        }
+
+        function calculateConfidence(sum) {
+            const confidence = (Math.abs(sum) / maxConfidenceSum) * 100;
+            return Math.min(100, confidence).toFixed(0);
+        }
+
+        // Función para animar el proceso de un solo paso de entrenamiento
+        // Recibe 'misclassified' (true/false) en lugar de 'error' (2, -2, 0)
+        async function animateTrainingStep(data, inputs, sum, prediction, misclassified) {
+            // Círculo de entrada
+            currentColorName.innerText = data.name;
+            currentColorSwatch.style.backgroundColor = data.hex;
+            // Barras de entrada
+            updateInputBars(inputs);
+            // Barras de pesos y sesgo
+            updateWeightBars();
+            // Suma
+            sumValue.innerText = sum.toFixed(3);
+            // Círculo de predicción
+            const confidence = calculateConfidence(sum);
+            if (prediction === 1) {
+                neuronPrediction.innerText = "ROJO";
+                neuronPrediction.className = 'io-circle predict-red';
+            } else {
+                neuronPrediction.innerText = "AZUL";
+                neuronPrediction.className = 'io-circle predict-blue';
+            }
+            trainPredictionConfidence.innerText = `(${confidence}%)`;
+
+            // Mensaje de feedback
+            feedbackMessage.innerHTML = `Etiqueta Real: <strong>${data.label === 1 ? 'ROJO' : 'AZUL'}</strong>. `;
+            if (misclassified) {
+                feedbackMessage.innerHTML += `¡Error! Ajustando...`;
+                feedbackMessage.className = 'error-message';
+            } else {
+                feedbackMessage.innerHTML += `¡Correcto!`;
+                feedbackMessage.className = 'correct-message';
+            }
+        }
+
+        // --- CÓDIGO DEL PERCEPTRÓN (CORREGIDO) ---
+        
+        async function train() {
+            if (isTraining) return;
+            isTraining = true;
+            trainButton.disabled = true;
+            trainingVisualization.style.display = 'block';
+            epochSummary.innerHTML = 'Iniciando entrenamiento...';
+
+            let stableIterations = 0;
+            const stabilityThreshold = 0.0001;
+            const maxStableIterations = 5;
+            let epoch = 0;
+            const maxEpochs = 1000;
+
+            while (stableIterations < maxStableIterations && epoch < maxEpochs) {
+                epoch++;
+                document.getElementById('current-epoch').innerText = epoch;
+                let epochCorrectPredictions = 0;
+                let epochAdjustments = 0;
+                const initialWeightsInEpoch = [...weights];
+                const initialBiasInEpoch = bias;
+                
+                datos.sort(() => Math.random() - 0.5);
+
+                for (const data of datos) {
+                    const inputs = [data.r / 255, data.g / 255, data.b / 255];
+                    
+                    // 1. CÁLCULO DE LA SUMA
+                    let sum = bias;
+                    for (let j = 0; j < inputs.length; j++) {
+                        sum += inputs[j] * weights[j];
+                    }
+                    
+                    // 2. VERIFICACIÓN DE ERROR
+                    // (sum * data.label) será negativo si los signos no coinciden
+                    const misclassified = (sum * data.label <= 0);
+                    
+                    // 3. AJUSTE DE PESOS (si hay error)
+                    if (misclassified) {
+                        epochAdjustments++;
+                        
+                        // El ajuste es data.label (1 o -1)
+                        for (let j = 0; j < weights.length; j++) {
+                            const deltaWeight = data.label * inputs[j] * learningRate;
+                            showFloatingText(document.getElementById(`weight-bar-${['R','G','B'][j]}-container`), deltaWeight);
+                            weights[j] += deltaWeight;
+                        }
+                        const deltaBias = data.label * learningRate;
+                        showFloatingText(document.getElementById('bias-container'), deltaBias);
+                        bias += deltaBias;
+                    } else {
+                        epochCorrectPredictions++;
+                    }
+                    
+                    // 4. VISUALIZACIÓN
+                    const predictionForDisplay = sum >= 0 ? 1 : -1;
+                    await animateTrainingStep(data, inputs, sum, predictionForDisplay, misclassified);
+                    
+                    predict(); // Actualiza la predicción en vivo
+
+                    // Pausa controlada por el slider
+                    const delay = parseInt(speedSlider.value, 10);
+                    if (delay > 0) {
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    } else {
+                        await new Promise(resolve => setTimeout(resolve, 5)); // Micro-pausa
+                    }
+                } // Fin del bucle for (colores)
+
+                // Comprobar estabilidad
+                let currentWeightsSumDiff = weights.reduce((acc, w, idx) => acc + Math.abs(w - initialWeightsInEpoch[idx]), 0);
+                let biasDiff = Math.abs(bias - initialBiasInEpoch);
+
+                if (currentWeightsSumDiff < stabilityThreshold && biasDiff < stabilityThreshold) {
+                    stableIterations++;
+                } else {
+                    stableIterations = 0;
+                }
+
+                // Resumen de la época
+                epochSummary.innerHTML = `
+                    <strong>Época ${epoch} Terminada:</strong><br>
+                    Aciertos: ${epochCorrectPredictions}/${datos.length} (${((epochCorrectPredictions/datos.length)*100).toFixed(1)}%) | 
+                    Ajustes: ${epochAdjustments} | 
+                    Estabilidad: ${stableIterations}/${maxStableIterations}
+                `;
+                
+                const delay = parseInt(speedSlider.value, 10);
+                if (delay > 100) { // Pausa entre épocas si no es muy rápido
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            } // Fin del bucle while (épocas)
+            
+            epochSummary.innerHTML += "<br><strong>¡Entrenamiento completado!</strong>";
+            trainButton.disabled = false;
+            isTraining = false;
+        }
+
+        // Función para predecir un nuevo color (sin cambios)
+        function predict() {
+            const hexColor = colorPicker.value;
+            const r = parseInt(hexColor.substring(1, 3), 16);
+            const g = parseInt(hexColor.substring(3, 5), 16);
+            const b = parseInt(hexColor.substring(5, 7), 16);
+            const inputs = [r / 255, g / 255, b / 255];
+
+            let sum = bias;
+            for (let j = 0; j < inputs.length; j++) {
+                sum += inputs[j] * weights[j];
+            }
+            
+            const prediction = sum >= 0 ? 1 : -1;
+            const confidence = calculateConfidence(sum);
+            
+            const resultDiv = document.getElementById('prediction-result');
+            resultDiv.style.backgroundColor = hexColor;
+
+            if (prediction === 1) {
+                resultDiv.innerHTML = `Predicción: ROJO <span class="confidence-span">(${confidence}%)</span>`;
+                resultDiv.style.color = isColorDark(r, g, b) ? 'white' : 'black';
+            } else {
+                resultDiv.innerHTML = `Predicción: AZUL <span class="confidence-span">(${confidence}%)</span>`;
+                resultDiv.style.color = isColorDark(r, g, b) ? 'white' : 'black';
+            }
+        }
+
+        // --- FUNCIONES AUXILIARES ---
+        function isColorDark(r, g, b) {
+            const luminosity = (0.2126 * r + 0.7152 * g + 0.0722 * b);
+            return luminosity < 140; // Umbral ajustado
+        }
+
+    </script>
+</body>
+</html>
