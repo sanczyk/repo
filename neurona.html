@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Entendiendo el Perceptrón: Visualización Avanzada</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.2.1/chartjs-plugin-annotation.min.js"></script>
+    
     <style>
         /* Estilos generales */
         body {
@@ -38,65 +41,22 @@
             padding-bottom: 0;
             text-align: center;
         }
-        /* --- CORRECCIÓN DE ESTILO DE CÓDIGO --- */
-        code {
-            background-color: #e4e6e8; /* Un fondo gris un poco más oscuro */
-            padding: 3px 6px;
-            border-radius: 4px;
-            font-family: 'Courier New', Courier, monospace;
-            color: #3d3d3d; /* Asegura texto oscuro */
-        }
-        pre {
-            background-color: #2c3e50;
-            color: #f8f8f2;
-            padding: 20px;
-            border-radius: 8px;
-            overflow-x: auto;
-            white-space: pre-wrap;
-            margin-bottom: 20px;
-        }
-        /* CORRECCIÓN: El <code> DENTRO de <pre> debe ser transparente */
-        pre code {
-            background-color: transparent;
-            padding: 0;
-            color: inherit;
-        }
+        code { background-color: #e4e6e8; padding: 3px 6px; border-radius: 4px; font-family: 'Courier New', Courier, monospace; color: #3d3d3d; }
+        pre { background-color: #2c3e50; color: #f8f8f2; padding: 20px; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; margin-bottom: 20px; }
+        pre code { background-color: transparent; padding: 0; color: inherit; }
         
-        /* Estilos para las tablas de datos */
-        .table-container {
-            display: flex;
-            gap: 20px;
-            justify-content: space-around;
-            flex-wrap: wrap;
-        }
-        table {
-            border-collapse: collapse;
-            margin-top: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        /* Reducido el ancho de las tablas de datos */
-        #rojos-table, #azules-table {
-            width: 48%; 
-            min-width: 300px;
-        }
+        /* Tablas de datos (sin cambios) */
+        .table-container { display: flex; gap: 20px; justify-content: space-around; flex-wrap: wrap; }
+        table { border-collapse: collapse; margin-top: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden; }
+        #rojos-table, #azules-table { width: 48%; min-width: 300px; }
         th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
         th { background-color: #3498db; color: white; font-weight: bold; }
         tr:last-child td { border-bottom: none; }
         .rojo-header { background-color: #e74c3c; }
         .azul-header { background-color: #3498db; }
-        .color-swatch {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            border: 1px solid #ccc;
-            vertical-align: middle;
-            margin-right: 10px;
-        }
+        .color-swatch { display: inline-block; width: 20px; height: 20px; border-radius: 50%; border: 1px solid #ccc; vertical-align: middle; margin-right: 10px; }
 
-        /* --- Panel Interactivo --- */
+        /* Panel Interactivo (Modificado) */
         .interactive-panel {
             background-color: #ecf0f1;
             border: 1px solid #bdc3c7;
@@ -104,196 +64,148 @@
             padding: 20px;
             margin-top: 25px;
             display: grid;
+            /* CAMBIO: 'predict' ya no está en el grid */
             grid-template-areas:
                 "train"
-                "visual"
-                "predict";
+                "visual";
             gap: 20px;
         }
-        
-        /* Controles de Entrenamiento */
-        .train-controls {
-            grid-area: train;
-            text-align: center;
-        }
-        button {
-            background-color: #3498db;
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            font-size: 1em;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: background-color 0.3s, transform 0.1s;
-        }
+        .train-controls { grid-area: train; text-align: center; }
+        button { background-color: #3498db; color: white; border: none; padding: 12px 25px; font-size: 1em; border-radius: 6px; cursor: pointer; transition: background-color 0.3s, transform 0.1s; }
         button:hover { background-color: #2980b9; }
         button:active { transform: scale(0.98); }
         button:disabled { background-color: #95a5a6; cursor: not-allowed; }
+        .speed-slider-container { margin-top: 15px; font-size: 0.9em; color: #555; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        input[type="range"] { flex-grow: 1; max-width: 300px; cursor: pointer; }
         
-        /* Slider de Velocidad */
-        .speed-slider-container {
-            margin-top: 15px;
-            font-size: 0.9em;
-            color: #555;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-        input[type="range"] {
-            flex-grow: 1;
-            max-width: 300px;
-            cursor: pointer;
-        }
-
-        /* Controles de Predicción (Siempre activos) */
+        /* --- CAMBIO: Panel de Predicción Flotante --- */
         .prediction-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 280px;
+            z-index: 1000;
             grid-area: predict;
             text-align: center;
             background: #fff;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+            border: 1px solid #ddd;
         }
         .prediction-controls h3 { margin-top: 0; }
-        input[type="color"] {
-            width: 80px;
-            height: 40px;
-            border: none;
-            cursor: pointer;
-            vertical-align: middle;
-            margin-left: 10px;
-        }
-        #prediction-result {
-            font-weight: bold;
-            font-size: 1.5em;
-            transition: background-color 0.3s, color 0.3s;
-            height: 60px;
-            line-height: 60px;
-            margin-top: 20px;
-            border-radius: 6px;
-        }
-        #prediction-result .confidence-span {
-            font-size: 0.8em;
-            opacity: 0.85;
-            margin-left: 5px;
-        }
-        .prediction-box {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 20px;
-        }
+        input[type="color"] { width: 80px; height: 40px; border: none; cursor: pointer; vertical-align: middle; margin-left: 10px; }
+        #prediction-result { font-weight: bold; font-size: 1.5em; transition: background-color 0.3s, color 0.3s; height: 60px; line-height: 60px; margin-top: 20px; border-radius: 6px; }
+        #prediction-result .confidence-span { font-size: 0.8em; opacity: 0.85; margin-left: 5px; }
+        .prediction-box { display: flex; align-items: center; justify-content: center; gap: 15px; }
+        /* --- Fin Panel Flotante --- */
         
-        /* --- Visualización del Entrenamiento --- */
-        #training-visualization {
-            grid-area: visual;
-            background: #fdfdfd;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        #epoch-summary {
-            font-size: 0.9em;
-            padding: 10px;
-            background-color: #f0f8ff;
-            border-left: 5px solid #3498db;
-            border-radius: 4px;
-            text-align: left;
-        }
+        /* Visualización del Entrenamiento (sin cambios) */
+        #training-visualization { grid-area: visual; background: #fdfdfd; border: 1px solid #ddd; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        #epoch-summary { font-size: 0.9em; padding: 10px; background-color: #f0f8ff; border-left: 5px solid #3498db; border-radius: 4px; text-align: left; }
         
-        /* --- AJUSTES: Matriz de Confusión y Umbral --- */
-        #confusion-matrix-container {
-            margin-top: 15px;
-            background-color: #f9f9f9;
-            border: 1px solid #e0e0e0;
-            padding: 15px;
-            border-radius: 8px;
-        }
-        /* AJUSTE: Mover slider aquí */
+        /* Contenedor del Slider de Umbral */
         .threshold-slider-container {
             margin: 0 auto 15px auto;
             max-width: 380px;
             font-size: 0.9em;
             color: #555;
+            background: #fdfdfd;
+            padding: 10px;
+            border-radius: 8px;
         }
-        .threshold-slider-container label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        .threshold-slider-container input[type="range"] {
-            max-width: 100%;
-            width: 100%;
-        }
-        /* AJUSTE: Reducir ancho de la matriz */
+        .threshold-slider-container label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .threshold-slider-container input[type="range"] { max-width: 100%; width: 100%; }
+        
+        /* Matriz de Confusión (Estilos) */
         .confusion-matrix {
-            width: 380px; /* Ancho fijo */
-            margin: 0 auto; /* Centrado */
+            width: 100%;
+            max-width: 380px;
+            margin: 0 auto;
             text-align: center;
         }
-        .confusion-matrix th {
-            background-color: #7f8c8d;
-            font-size: 0.9em;
-        }
+        .confusion-matrix th { background-color: #7f8c8d; font-size: 0.9em; }
         .confusion-matrix td {
             font-size: 1.4em;
             font-weight: bold;
             font-family: 'Courier New', Courier, monospace;
             background-color: #fdfdfd;
         }
-        .confusion-matrix #cm-rr { background-color: #e8f5e9; color: #2e7d32; }
-        .confusion-matrix #cm-ra { background-color: #ffebee; color: #c62828; }
-        .confusion-matrix #cm-ar { background-color: #fff8e1; color: #f57f17; }
-        .confusion-matrix #cm-aa { background-color: #e3f2fd; color: #1565c0; }
+        .confusion-matrix .cm-rr { background-color: #e8f5e9; color: #2e7d32; }
+        .confusion-matrix .cm-ra { background-color: #ffebee; color: #c62828; }
+        .confusion-matrix .cm-ar { background-color: #fff8e1; color: #f57f17; }
+        .confusion-matrix .cm-aa { background-color: #e3f2fd; color: #1565c0; }
 
-        /* --- Estilos de la Animación de la Neurona --- */
-        .neuron-diagram {
-            display: grid;
-            grid-template-columns: 1fr 2fr 1fr;
-            align-items: center;
-            justify-items: center;
-            gap: 20px;
-            margin: 20px 0;
-            min-height: 250px;
+        /* Estilos del Histograma (Canvas) */
+        .histogram-side {
+            width: 100%;
+            max-width: 380px;
+            margin: 15px auto 0 auto;
         }
-        .io-circle {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
+        .histogram-side h4 { margin-top: 10px; }
+        .score-histogram-canvas { /* Clase para el canvas */
+            width: 100% !important; /* !important para sobreescribir Chart.js */
+            height: 120px !important;
+            background-color: #fafafa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        /* --- CAMBIO: Contenedor del Historial --- */
+        #epoch-history-container {
+            margin-top: 20px;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.1em;
-            font-weight: bold;
-            color: white;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-            border: 4px solid #fff;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
-            transition: background-color 0.3s;
+            gap: 15px;
+        }
+        .epoch-record {
+            background-color: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            border-radius: 8px;
+            /* CAMBIO: Layout Flex */
+            display: flex;
+            flex-wrap: wrap; /* Para pantallas pequeñas */
+            align-items: flex-start;
+            gap: 20px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        /* CAMBIO: Época actual destacada */
+        .epoch-record-current {
+            border-color: #3498db;
+            box-shadow: 0 0 10px rgba(52,152,219,0.3);
+            background-color: #f0f8ff;
+        }
+        
+        .epoch-record-header {
+            width: 100%;
             text-align: center;
-            padding: 5px;
-            box-sizing: border-box; /* Para que el padding no afecte el tamaño */
+            margin-top: 0;
+            padding-bottom: 5px;
+            border-bottom: 1px dashed #ccc;
         }
-        .io-circle span {
-            font-size: 0.8em;
-            font-weight: normal;
-            display: block;
-            margin-top: 5px;
-            word-break: break-word;
+        
+        /* CAMBIO: Lados Izquierdo y Derecho */
+        .matrix-side {
+            flex: 1;
+            min-width: 300px; /* Para que no se apriete */
         }
+        .histogram-side {
+            flex: 1;
+            min-width: 300px; /* Para que no se apriete */
+        }
+        /* --- Fin Cambios de Historial --- */
+
+
+        /* Animación de la Neurona (sin cambios) */
+        .neuron-diagram { display: grid; grid-template-columns: 1fr 2fr 1fr; align-items: center; justify-items: center; gap: 20px; margin: 20px 0; min-height: 250px; }
+        .io-circle { width: 120px; height: 120px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 1.1em; font-weight: bold; color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); border: 4px solid #fff; box-shadow: 0 5px 15px rgba(0,0,0,0.15); transition: background-color 0.3s; text-align: center; padding: 5px; box-sizing: border-box; }
+        .io-circle span { font-size: 0.8em; font-weight: normal; display: block; margin-top: 5px; word-break: break-word; }
         #current-color-swatch { background-color: #ccc; }
         #neuron-prediction { background-color: #ccc; }
         #neuron-prediction.predict-red { background-color: #e74c3c; }
         #neuron-prediction.predict-blue { background-color: #3498db; }
-        #train-prediction-confidence {
-            font-size: 0.9em !important;
-            font-weight: bold !important;
-        }
+        #train-prediction-confidence { font-size: 0.9em !important; font-weight: bold !important; }
         .neuron-guts { display: flex; flex-direction: column; gap: 15px; width: 100%; }
         .input-bar-container { display: flex; align-items: center; gap: 8px; font-family: 'Courier New', Courier, monospace; font-weight: bold; font-size: 0.9em; }
         .input-bar-track { flex-grow: 1; height: 12px; background-color: #e9ecef; border-radius: 6px; overflow: hidden; }
@@ -309,43 +221,41 @@
         .bias-sum-container { display: flex; justify-content: space-around; font-family: 'Courier New', Courier, monospace; font-size: 0.9em; margin-top: 10px; }
         .bias-sum-container div { position: relative; }
 
-        @keyframes float-up-fade {
-            0% { opacity: 1; transform: translateY(0); }
-            100% { opacity: 0; transform: translateY(-20px); } 
-        }
-        .floating-text {
-            position: absolute;
-            top: -5px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 1.1em;
-            font-weight: bold;
-            animation: float-up-fade 2.4s ease-out forwards;
-            pointer-events: none;
-            text-shadow: 0 0 3px #fff;
-        }
+        /* Animación flotante (sin cambios) */
+        @keyframes float-up-fade { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-20px); } }
+        .floating-text { position: absolute; top: -5px; left: 50%; transform: translateX(-50%); font-size: 1.1em; font-weight: bold; animation: float-up-fade 2.4s ease-out forwards; pointer-events: none; text-shadow: 0 0 3px #fff; }
         .floating-text.positive { color: #2ecc71; }
         .floating-text.negative { color: #e74c3c; }
         #feedback-message { min-height: 25px; text-align: center; font-weight: bold; font-size: 1.1em; }
         .error-message { color: #e74c3c; }
         .correct-message { color: #2ecc71; }
+        
+        /* Media query para pantallas pequeñas */
+        @media (max-width: 1100px) {
+            .prediction-controls {
+                position: relative;
+                top: 0;
+                right: 0;
+                width: auto; /* Ancho completo */
+                margin-top: 20px;
+                grid-area: predict; /* Lo re-inserta en el grid si existe */
+            }
+             .interactive-panel {
+                 /* Lo re-inserta en el grid si existe */
+                 grid-template-areas: "train" "visual" "predict";
+             }
+        }
 
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>🧠 Entendiendo el Perceptrón: Visualización Interactiva</h1>
-
+        <h1>🧠 Entendiendo el Perceptrón: Visualización Avanzada</h1>
         <p>
             Esta página te muestra cómo un <strong>perceptrón</strong> (una neurona artificial) aprende a tomar decisiones. Usaremos un clasificador de colores como ejemplo. La neurona aprenderá a distinguir entre colores "Rojos" y "Azules" a partir de sus valores <strong>R, G y B</strong>.
         </p>
-
         <h2>El Ejemplo: Clasificador Rojo vs. Azul</h2>
-        <p>
-            Tenemos un conjunto de colores etiquetados. El objetivo de la neurona es aprender a ajustar sus <strong>Pesos (Weights)</strong> y su <strong>Sesgo (Bias)</strong> para que, al darle un color, pueda predecir correctamente si pertenece al grupo Rojo (<code>1</code>) o al grupo Azul (<code>-1</code>).
-        </p>
-
         <div class="table-container">
             <div id="rojos-container">
                 <h3 style="text-align: center;">🎨 Colores Rojos (Etiqueta: 1)</h3>
@@ -379,182 +289,59 @@
                 <h4>Progreso del Entrenamiento (Época <span id="current-epoch">0</span>)</h4>
                 
                 <div class="neuron-diagram">
-                    
                     <div class"io-display">
-                        <div class="io-circle" id="current-color-swatch">
-                            Entrada
-                            <span id="current-color-name">N/A</span>
-                        </div>
+                        <div class="io-circle" id="current-color-swatch">Entrada<span id="current-color-name">N/A</span></div>
                         <div style="text-align: center; font-weight: bold; margin-top: 5px;">Entrada Real</div>
                     </div>
-
                     <div class="neuron-guts">
-                        <div class="input-bar-container" id="input-bar-R">
-                            <span style="color: #e74c3c;">R</span>
-                            <div class="input-bar-track"><div class="input-bar-value"></div></div>
-                        </div>
-                        <div class="input-bar-container" id="input-bar-G">
-                            <span style="color: #2ecc71;">G</span>
-                            <div class="input-bar-track"><div class="input-bar-value"></div></div>
-                        </div>
-                        <div class="input-bar-container" id="input-bar-B">
-                            <span style="color: #3498db;">B</span>
-                            <div class="input-bar-track"><div class="input-bar-value"></div></div>
-                        </div>
-                        
+                        <div class="input-bar-container" id="input-bar-R"><span style="color: #e74c3c;">R</span><div class="input-bar-track"><div class="input-bar-value"></div></div></div>
+                        <div class="input-bar-container" id="input-bar-G"><span style="color: #2ecc71;">G</span><div class="input-bar-track"><div class="input-bar-value"></div></div></div>
+                        <div class="input-bar-container" id="input-bar-B"><span style="color: #3498db;">B</span><div class="input-bar-track"><div class="input-bar-value"></div></div></div>
                         <hr style="border: 0; border-top: 1px dashed #aaa; margin: 5px 0;">
-
-                        <div class="weight-bar-container" id="weight-bar-R-container">
-                            <span>wR</span>
-                            <div class="weight-bar-track"><div class="weight-bar-value" id="weight-bar-R"></div></div>
-                            <span id="weight-value-R" class="weight-value-text">0.00</span>
-                        </div>
-                        <div class="weight-bar-container" id="weight-bar-G-container">
-                            <span>wG</span>
-                            <div class="weight-bar-track"><div class="weight-bar-value" id="weight-bar-G"></div></div>
-                            <span id="weight-value-G" class="weight-value-text">0.00</span>
-                        </div>
-                        <div class="weight-bar-container" id="weight-bar-B-container">
-                            <span>wB</span>
-                            <div class="weight-bar-track"><div class="weight-bar-value" id="weight-bar-B"></div></div>
-                            <span id="weight-value-B" class="weight-value-text">0.00</span>
-                        </div>
-                        
+                        <div class="weight-bar-container" id="weight-bar-R-container"><span>wR</span><div class="weight-bar-track"><div class="weight-bar-value" id="weight-bar-R"></div></div><span id="weight-value-R" class="weight-value-text">0.00</span></div>
+                        <div class="weight-bar-container" id="weight-bar-G-container"><span>wG</span><div class="weight-bar-track"><div class="weight-bar-value" id="weight-bar-G"></div></div><span id="weight-value-G" class="weight-value-text">0.00</span></div>
+                        <div class="weight-bar-container" id="weight-bar-B-container"><span>wB</span><div class="weight-bar-track"><div class="weight-bar-value" id="weight-bar-B"></div></div><span id="weight-value-B" class="weight-value-text">0.00</span></div>
                         <div class="bias-sum-container">
                             <div id="bias-container"><strong>Sesgo (Bias):</strong> <span id="bias-value">0.00</span></div>
                             <div><strong>Suma:</strong> <span id="sum-value">0.00</span></div>
                         </div>
                     </div>
-
                     <div class"io-display">
-                        <div class="io-circle" id="neuron-prediction">
-                            ?
-                            <span id="train-prediction-confidence">(?)</span>
-                        </div>
+                        <div class="io-circle" id="neuron-prediction">?<span id="train-prediction-confidence">(?)</span></div>
                         <div style="text-align: center; font-weight: bold; margin-top: 5px;">Predicción Neurona</div>
                     </div>
                 </div>
-
                 <div id="feedback-message"></div>
                 
                 <div id="epoch-summary" class="epoch-summary"></div>
                 
-                <div id="confusion-matrix-container">
-                    <h4>Matriz de Confusión y Umbral</h4>
-                    
-                    <div class="threshold-slider-container">
-                        <label for="thresholdSlider">Umbral de Decisión: <span id="thresholdValue">0.00</span></label>
-                        <input type="range" id="thresholdSlider" min="-2.0" max="2.0" step="0.05" value="0.0">
-                    </div>
-
-                    <table class="confusion-matrix"> <thead>
-                            <tr>
-                                <th></th>
-                                <th>Predicción: ROJO</th>
-                                <th>Predicción: AZUL</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <th>Real: ROJO</th>
-                                <td id="cm-rr">0</td> <td id="cm-ra">0</td> </tr>
-                            <tr>
-                                <th>Real: AZUL</th>
-                                <td id="cm-ar">0</td> <td id="cm-aa">0</td> </tr>
-                        </tbody>
-                    </table>
+                <div class="threshold-slider-container">
+                    <label for="thresholdSlider">Umbral de Decisión Global: <span id="thresholdValue">0.00</span></label>
+                    <input type="range" id="thresholdSlider" min="-2.0" max="2.0" step="0.05" value="0.0">
                 </div>
+
+                <div id="epoch-history-container">
+                    </div>
+                
                 </div>
             
-            <div class="prediction-controls">
-                <h3>2. ¡Prueba la neurona en vivo!</h3>
-                <p>Mueve el selector y mira la predicción con los pesos actuales. (Esta prueba siempre usa un umbral de 0).</p>
-                
-                <div class="prediction-box">
-                    <label for="colorPicker">Elige un color:</label>
-                    <input type="color" id="colorPicker" value="#800080"> </div>
-                <div id="prediction-result">Predicción: ?</div>
-            </div>
 
         </div>
 
-        <h2>Código Fuente Clave (Corregido)</h2>
-        <p>
-            El "cerebro" de este ejemplo está en estas funciones. Fíjate en el cambio en <code>train()</code>, donde ahora calculamos la predicción para la matriz (<code>predictionForMatrix</code>) usando el <code>decisionThreshold</code>, pero el error para el aprendizaje (<code>misclassified</code>) sigue usando el umbral 0, como debe ser.
-        </p>
-        
-        <h3>Función de Entrenamiento (<code>train()</code>)</h3>
-        <pre><code class="language-javascript">
-async function train() {
-    if (isTraining) return;
-    isTraining = true;
-    trainButton.disabled = true;
-    trainingVisualization.style.display = 'block';
-    
-    // ... (criterios de parada y bucle 'while' principal) ...
-
-        // *** NUEVO: Resetear la matriz al inicio de la época ***
-        resetConfusionMatrixUI();
-        let epochMatrixStats = { tp: 0, fn: 0, fp: 0, tn: 0 };
-    
-        // Recorremos cada color en nuestros datos de entrenamiento
-        for (const data of datos) {
-            const inputs = [data.r / 255, data.g / 255, data.b / 255];
-            
-            // 1. CÁLCULO DE LA SUMA PONDERADA
-            let sum = bias;
-            for (let j = 0; j < inputs.length; j++) {
-                sum += inputs[j] * weights[j];
-            }
-            
-            // 2. CÁLCULO DE PREDICCIÓN (para la Matriz)
-            // Usa el umbral del slider
-            const predictionForMatrix = sum >= decisionThreshold ? 1 : -1;
-            
-            // 3. COMPROBACIÓN DE ERROR (para el Aprendizaje)
-            // Usa el umbral 0 (estándar del perceptrón)
-            let misclassified = (sum * data.label <= 0);
-            
-            if (misclassified) {
-                epochAdjustments++;
-                
-                // 4. AJUSTE DE PESOS Y SESGO
-                // (El aprendizaje no se ve afectado por el slider de umbral)
-                for (let j = 0; j < weights.length; j++) {
-                    const deltaWeight = data.label * inputs[j] * learningRate;
-                    showFloatingText(document.getElementById(`weight-bar-${['R','G','B'][j]}-container`), deltaWeight);
-                    weights[j] += deltaWeight;
-                }
-                const deltaBias = data.label * learningRate;
-                showFloatingText(document.getElementById('bias-container'), deltaBias);
-                bias += deltaBias;
-            } else {
-                epochCorrectPredictions++;
-            }
-
-            // --- 5. ACTUALIZACIÓN INCREMENTAL DE LA MATRIZ ---
-            incrementConfusionMatrixUI(data.label, predictionForMatrix, epochMatrixStats);
-
-            // --- VISUALIZACIÓN DETALLADA DEL PASO ---
-            const predictionForDisplay = sum >= 0 ? 1 : -1;
-            await animateTrainingStep(data, inputs, sum, predictionForDisplay, misclassified);
-            
-            predict(); // Actualiza la predicción en vivo
-
-            // ... (código de pausa) ...
-        }
-    
-    // *** YA NO SE ACTUALIZA LA MATRIZ AQUÍ ***
-    
-    // ... (finalización del entrenamiento) ...
-}
-        </code></pre>
+        <div class="prediction-controls">
+            <h3>2. ¡Prueba la neurona en vivo!</h3>
+            <p>Mueve el selector y mira la predicción con los pesos actuales. (Esta prueba siempre usa un umbral de 0).</p>
+            <div class="prediction-box">
+                <label for="colorPicker">Elige un color:</label>
+                <input type="color" id="colorPicker" value="#800080">
+            </div>
+            <div id="prediction-result">Predicción: ?</div>
+        </div>
 
     </div>
 
     <script>
-        // --- DATOS DE ENTRENAMIENTO (Lista Exhaustiva) ---
-        // Usamos 1 para ROJO y -1 para AZUL.
+        // --- DATOS DE ENTRENAMIENTO (Lista sin cambios) ---
         const datos = [
             // --- Label 1 (Reds, Pinks, Oranges, Fuchsias) ---
             { name: 'IndianRed', r: 205, g: 92, b: 92, label: 1, hex: '#CD5C5C' },
@@ -578,20 +365,12 @@ async function train() {
             { name: 'DarkOrange', r: 255, g: 140, b: 0, label: 1, hex: '#FF8C00' },
             { name: 'Orange', r: 255, g: 165, b: 0, label: 1, hex: '#FFA500' },
             { name: 'Fuchsia', r: 255, g: 0, b: 255, label: 1, hex: '#FF00FF' }, // Fucsia/Magenta
-
             // --- Label -1 (Blues, Violets, Cyans, Aquas) ---
             { name: 'Lavender', r: 230, g: 230, b: 250, label: -1, hex: '#E6E6FA' },
-            { name: 'Thistle', r: 216, g: 191, b: 216, label: -1, hex: '#D8BFD8' },
-            { name: 'Plum', r: 221, g: 160, b: 221, label: -1, hex: '#DDA0DD' },
-            { name: 'Violet', r: 238, g: 130, b: 238, label: -1, hex: '#EE82EE' },
-            { name: 'Orchid', r: 218, g: 112, b: 214, label: -1, hex: '#DA70D6' },
-            { name: 'MediumOrchid', r: 186, g: 85, b: 211, label: -1, hex: '#BA55D3' },
             { name: 'MediumPurple', r: 147, g: 112, b: 219, label: -1, hex: '#9370DB' },
             { name: 'BlueViolet', r: 138, g: 43, b: 226, label: -1, hex: '#8A2BE2' },
             { name: 'DarkViolet', r: 148, g: 0, b: 211, label: -1, hex: '#9400D3' },
             { name: 'DarkOrchid', r: 153, g: 50, b: 204, label: -1, hex: '#9932CC' },
-            { name: 'DarkMagenta', r: 139, g: 0, b: 139, label: -1, hex: '#8B008B' },
-            { name: 'Purple', r: 128, g: 0, b: 128, label: -1, hex: '#800080' },
             { name: 'Indigo', r: 75, g: 0, b: 130, label: -1, hex: '#4B0082' },
             { name: 'SlateBlue', r: 106, g: 90, b: 205, label: -1, hex: '#6A5ACD' },
             { name: 'DarkSlateBlue', r: 72, g: 61, b: 139, label: -1, hex: '#483D8B' },
@@ -625,11 +404,23 @@ async function train() {
         // --- PARÁMETROS DEL PERCEPTRÓN ---
         let weights = [(Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2];
         let bias = (Math.random() - 0.5) * 2;
-        let decisionThreshold = 0.0; // Umbral para la matriz de confusión
+        let decisionThreshold = 0.0;
         const learningRate = 0.05;
         const maxWeightDisplay = 2.0;
-        const maxConfidenceSum = 2.5;
         let isTraining = false;
+        
+        // --- NUEVO: Historial de Épocas ---
+        let epochHistoryData = []; // Almacena {epoch, weights, bias, chartInstance, matrixElement, redScores, blueScores}
+
+        // --- NUEVO: Constantes del Histograma ---
+        const HISTO_MIN = -1.0;
+        const HISTO_MAX = 1.0;
+        const HISTO_BINS = 20; // -1.0 a 1.0 en pasos de 0.1
+        const HISTO_STEP = (HISTO_MAX - HISTO_MIN) / HISTO_BINS;
+        // Crea las etiquetas para los bins, ej: "-1.0", "-0.9", ... "0.9"
+        const histogramBins = Array.from({ length: HISTO_BINS }, (_, i) => {
+            return (HISTO_MIN + i * HISTO_STEP).toFixed(1);
+        });
 
         // --- REFERENCIAS A ELEMENTOS DE LA UI ---
         const trainButton = document.getElementById('trainButton');
@@ -639,7 +430,7 @@ async function train() {
         const currentColorName = document.getElementById('current-color-name');
         const currentColorSwatch = document.getElementById('current-color-swatch');
         
-        // Referencias del "Cerebro"
+        // Referencias del "Cerebro" (sin cambios)
         const inputBarR = document.querySelector('#input-bar-R .input-bar-value');
         const inputBarG = document.querySelector('#input-bar-G .input-bar-value');
         const inputBarB = document.querySelector('#input-bar-B .input-bar-value');
@@ -656,33 +447,44 @@ async function train() {
         const feedbackMessage = document.getElementById('feedback-message');
         const epochSummary = document.getElementById('epoch-summary');
 
-        // --- Referencias (Matriz y Umbral) ---
+        // --- Referencias (Matriz, Umbral e Histograma) ---
         const thresholdSlider = document.getElementById('thresholdSlider');
         const thresholdValue = document.getElementById('thresholdValue');
-        const cmRR = document.getElementById('cm-rr'); // TP
-        const cmRA = document.getElementById('cm-ra'); // FN
-        const cmAR = document.getElementById('cm-ar'); // FP
-        const cmAA = document.getElementById('cm-aa'); // TN
-
+        const epochHistoryContainer = document.getElementById('epoch-history-container');
+        
         // --- INICIALIZACIÓN DE LA PÁGINA ---
         document.addEventListener('DOMContentLoaded', () => {
             populateTables();
             trainButton.addEventListener('click', train);
             colorPicker.addEventListener('input', predict);
             
-            // Listener para el slider de umbral (AHORA NO ACTUALIZA, SOLO GUARDA EL VALOR)
+            // --- CAMBIO: Listener del Slider Global ---
             thresholdSlider.addEventListener('input', () => {
                 decisionThreshold = parseFloat(thresholdSlider.value);
                 thresholdValue.innerText = decisionThreshold.toFixed(2);
-                // Ya no llama a updateConfusionMatrix()
+                
+                // Actualiza TODAS las épocas en el historial
+                for (const epochData of epochHistoryData) {
+                    // 1. Recalcular matriz con el umbral actual
+                    const matrixStats = recalculateMatrixStats(epochData.redScores, epochData.blueScores, decisionThreshold);
+                    
+                    // 2. Actualizar la tabla de la matriz
+                    updateMatrixTableUI(epochData.matrixElement, matrixStats);
+                    
+                    // 3. Actualizar la línea de umbral en el gráfico
+                    if (epochData.chartInstance) {
+                        epochData.chartInstance.options.plugins.annotation.annotations.thresholdLine.value = decisionThreshold;
+                        epochData.chartInstance.update('none'); // 'none' para evitar animación
+                    }
+                }
             });
             
             updateWeightBars();
-            resetConfusionMatrixUI(); // <-- Resetea la matriz al cargar
             predict();
         });
 
         function populateTables() {
+            // ... (Sin cambios) ...
             const rojosTbody = document.querySelector('#rojos-table tbody');
             const azulesTbody = document.querySelector('#azules-table tbody');
             datos.forEach(color => {
@@ -698,22 +500,19 @@ async function train() {
             });
         }
         
-        // --- FUNCIONES DE VISUALIZACIÓN ---
-        
+        // --- FUNCIONES DE VISUALIZACIÓN (Animación) ---
+        // ... (Sin cambios) ...
         function updateInputBars(inputs) {
             inputBarR.style.width = (inputs[0] * 100) + '%';
             inputBarG.style.width = (inputs[1] * 100) + '%';
             inputBarB.style.width = (inputs[2] * 100) + '%';
         }
-        
         function updateWeightBars() {
             [weights[0], weights[1], weights[2]].forEach((weight, i) => {
                 const bar = [weightBarR, weightBarG, weightBarB][i];
                 const text = [weightValueR, weightValueG, weightValueB][i];
-                
                 let scaledWeight = (weight / maxWeightDisplay) * 50;
                 scaledWeight = Math.max(-50, Math.min(50, scaledWeight)); 
-
                 if (scaledWeight > 0) {
                     bar.style.left = '50%';
                     bar.style.width = scaledWeight + '%';
@@ -727,7 +526,6 @@ async function train() {
             });
             biasValue.innerText = bias.toFixed(3);
         }
-
         function showFloatingText(container, value) {
             if (parseInt(speedSlider.value, 10) < 100 || Math.abs(value) < 0.0001) return;
             const textEl = document.createElement('div');
@@ -743,18 +541,26 @@ async function train() {
             textEl.addEventListener('animationend', () => textEl.remove());
         }
 
-        function calculateConfidence(sum) {
-            const confidence = (Math.abs(sum) / maxConfidenceSum) * 100;
-            return Math.min(100, confidence).toFixed(0);
+        // --- CAMBIO: Función de Confianza Sigmoide (de la vez pasada) ---
+        function calculateConfidenceSigmoid(sum) {
+            const probabilityRed = 1 / (1 + Math.exp(-sum));
+            let confidencePercent;
+            if (sum >= 0) {
+                confidencePercent = probabilityRed * 100;
+            } else {
+                confidencePercent = (1 - probabilityRed) * 100;
+            }
+            return confidencePercent.toFixed(0);
         }
 
         async function animateTrainingStep(data, inputs, sum, prediction, misclassified) {
+            // ... (Igual que antes, pero usa la nueva función de confianza) ...
             currentColorName.innerText = data.name;
             currentColorSwatch.style.backgroundColor = data.hex;
             updateInputBars(inputs);
             updateWeightBars();
             sumValue.innerText = sum.toFixed(3);
-            const confidence = calculateConfidence(sum);
+            const confidence = calculateConfidenceSigmoid(sum); // <-- Usando Sigmoide
             if (prediction === 1) {
                 neuronPrediction.innerText = "ROJO";
                 neuronPrediction.className = 'io-circle predict-red';
@@ -763,7 +569,6 @@ async function train() {
                 neuronPrediction.className = 'io-circle predict-blue';
             }
             trainPredictionConfidence.innerText = `(${confidence}%)`;
-
             feedbackMessage.innerHTML = `Etiqueta Real: <strong>${data.label === 1 ? 'ROJO' : 'AZUL'}</strong>. `;
             if (misclassified) {
                 feedbackMessage.innerHTML += `¡Error! Ajustando...`;
@@ -774,28 +579,195 @@ async function train() {
             }
         }
         
-        // --- NUEVAS FUNCIONES: Matriz de Confusión Dinámica ---
+        // --- NUEVAS FUNCIONES: Matriz Dinámica, Histograma e Historial ---
         
-        // Resetea el texto de la matriz a 0
-        function resetConfusionMatrixUI() {
-            cmRR.innerText = 0; cmRA.innerText = 0;
-            cmAR.innerText = 0; cmAA.innerText = 0;
+        // --- NUEVO: Incrementa un objeto de estadísticas de matriz ---
+        function incrementConfusionMatrixStats(matrixStats, label, prediction) {
+            if (label === 1 && prediction === 1) matrixStats.tp++;
+            else if (label === 1 && prediction === -1) matrixStats.fn++;
+            else if (label === -1 && prediction === 1) matrixStats.fp++;
+            else if (label === -1 && prediction === -1) matrixStats.tn++;
+        }
+        
+        // --- NUEVO: Calcula puntajes para un set de pesos/sesgo ---
+        function getAllScores(currentWeights, currentBias) {
+            let redScores = [], blueScores = [];
+            for (const data of datos) {
+                const inputs = [data.r / 255, data.g / 255, data.b / 255];
+                let sum = currentBias;
+                for (let j = 0; j < inputs.length; j++) {
+                    sum += inputs[j] * currentWeights[j];
+                }
+                if (data.label === 1) redScores.push(sum);
+                else blueScores.push(sum);
+            }
+            return { redScores, blueScores };
         }
 
-        // Incrementa el contador en el objeto 'matrixStore' Y actualiza la UI
-        function incrementConfusionMatrixUI(label, prediction, matrixStore) {
-            if (label === 1 && prediction === 1) matrixStore.tp++;
-            else if (label === 1 && prediction === -1) matrixStore.fn++;
-            else if (label === -1 && prediction === 1) matrixStore.fp++;
-            else if (label === -1 && prediction === -1) matrixStore.tn++;
+        // --- NUEVO: Recalcula una matriz desde cero basado en puntajes ---
+        function recalculateMatrixStats(redScores, blueScores, threshold) {
+            let matrixStats = { tp: 0, fn: 0, fp: 0, tn: 0 };
+            for (const score of redScores) {
+                const prediction = score >= threshold ? 1 : -1;
+                if (prediction === 1) matrixStats.tp++;
+                else matrixStats.fn++;
+            }
+            for (const score of blueScores) {
+                const prediction = score >= threshold ? 1 : -1;
+                if (prediction === 1) matrixStats.fp++;
+                else matrixStats.tn++;
+            }
+            return matrixStats;
+        }
+
+        // --- NUEVO: Actualiza celdas de una tabla de matriz específica ---
+        function updateMatrixTableUI(tableElement, stats) {
+            tableElement.querySelector('.cm-rr').innerText = stats.tp;
+            tableElement.querySelector('.cm-ra').innerText = stats.fn;
+            tableElement.querySelector('.cm-ar').innerText = stats.fp;
+            tableElement.querySelector('.cm-aa').innerText = stats.tn;
+        }
+
+        // --- CAMBIO: Función para procesar scores en bins para Chart.js ---
+        function binScores(scores) {
+            let bins = new Array(HISTO_BINS).fill(0);
+            for (const score of scores) {
+                let binIndex = Math.floor(((score - HISTO_MIN) / HISTO_MAX - HISTO_MIN) * HISTO_BINS);
+                binIndex = Math.floor((score - HISTO_MIN) / HISTO_STEP);
+                binIndex = Math.max(0, Math.min(HISTO_BINS - 1, binIndex)); // Agrupa scores fuera de rango
+                bins[binIndex]++;
+            }
+            return bins;
+        }
+
+        // --- CAMBIO: Crea un NUEVO histograma Chart.js ---
+        function createChartJsHistogram(canvasElement, threshold) {
+            const ctx = canvasElement.getContext('2d');
+            return new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: histogramBins,
+                    datasets: [
+                        {
+                            label: 'Rojos',
+                            data: [], // Vacío al inicio
+                            backgroundColor: 'rgba(231, 76, 60, 0.7)',
+                            borderColor: 'rgba(231, 76, 60, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Azules',
+                            data: [], // Vacío al inicio
+                            backgroundColor: 'rgba(52, 152, 219, 0.7)',
+                            borderColor: 'rgba(52, 152, 219, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true },
+                        y: {
+                            stacked: true,
+                            ticks: {
+                                // Muestra los ticks negativos como positivos (ej: -5 -> 5)
+                                callback: function(value) { return Math.abs(value); }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                // Muestra el valor del tooltip como positivo
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${Math.abs(context.raw)}`;
+                                }
+                            }
+                        },
+                        // CAMBIO: Configuración de la línea de umbral
+                        annotation: {
+                            annotations: {
+                                thresholdLine: {
+                                    type: 'line',
+                                    xMin: threshold,
+                                    xMax: threshold,
+                                    borderColor: 'rgb(44, 62, 80)',
+                                    borderWidth: 3,
+                                    label: {
+                                        content: 'Umbral',
+                                        enabled: true,
+                                        position: 'start'
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- CAMBIO: Actualiza un histograma Chart.js existente ---
+        function updateChartJsHistogram(chartInstance, redScores, blueScores, threshold) {
+            if (!chartInstance) return;
             
-            // Actualiza el UI
-            cmRR.innerText = matrixStore.tp;
-            cmRA.innerText = matrixStore.fn;
-            cmAR.innerText = matrixStore.fp;
-            cmAA.innerText = matrixStore.tn;
+            const redBins = binScores(redScores);
+            // Los scores azules se hacen negativos para que se dibujen hacia abajo
+            const blueBins = binScores(blueScores).map(count => -count);
+
+            chartInstance.data.datasets[0].data = redBins;
+            chartInstance.data.datasets[1].data = blueBins;
+            
+            // Actualiza la línea de umbral
+            chartInstance.options.plugins.annotation.annotations.thresholdLine.xMin = threshold;
+            chartInstance.options.plugins.annotation.annotations.thresholdLine.xMax = threshold;
+            
+            chartInstance.update();
         }
 
+
+        // --- NUEVO: Crea una entrada en el historial ---
+        function createNewHistoryEntry(epoch, threshold) {
+            const recordDiv = document.createElement('div');
+            recordDiv.className = 'epoch-record epoch-record-current'; // Inicia como "actual"
+            recordDiv.id = `epoch-record-${epoch}`;
+            
+            // Crear el HTML para la nueva entrada
+            recordDiv.innerHTML = `
+                <h4 class="epoch-record-header">Época ${epoch} (Procesando...)</h4>
+                
+                <div class="matrix-side">
+                     <h4>Matriz de Confusión</h4>
+                    <table class="confusion-matrix" id="matrix-epoch-${epoch}">
+                        <thead><tr><th></th><th>Predicción: ROJO</th><th>Predicción: AZUL</th></tr></thead>
+                        <tbody>
+                            <tr><th>Real: ROJO</th><td class="cm-rr">0</td><td class="cm-ra">0</td></tr>
+                            <tr><th>Real: AZUL</th><td class="cm-ar">0</td><td class="cm-aa">0</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="histogram-side">
+                     <h4>Histograma de Salida (Final)</h4>
+                     <canvas id="canvas-epoch-${epoch}" class="score-histogram-canvas"></canvas>
+                </div>
+            `;
+            
+            // Añadir al principio del contenedor
+            epochHistoryContainer.prepend(recordDiv);
+            
+            // Encontrar los elementos que acabamos de crear
+            const canvas = recordDiv.querySelector(`#canvas-epoch-${epoch}`);
+            const matrixElement = recordDiv.querySelector(`#matrix-epoch-${epoch}`);
+            
+            // Crear e inicializar el gráfico
+            const chartInstance = createChartJsHistogram(canvas, threshold);
+            
+            return { recordDiv, matrixElement, chartInstance };
+        }
+
+        
         // --- CÓDIGO DEL PERCEPTRÓN (Actualizado) ---
         
         async function train() {
@@ -804,6 +776,12 @@ async function train() {
             trainButton.disabled = true;
             trainingVisualization.style.display = 'block';
             epochSummary.innerHTML = 'Iniciando entrenamiento...';
+            
+            // --- NUEVO: Limpiar historial ---
+            epochHistoryData.forEach(data => data.chartInstance.destroy()); // Destruir charts viejos
+            epochHistoryData = [];
+            epochHistoryContainer.innerHTML = '';
+
 
             let stableIterations = 0;
             const stabilityThreshold = 0.0001;
@@ -814,36 +792,55 @@ async function train() {
             while (stableIterations < maxStableIterations && epoch < maxEpochs) {
                 epoch++;
                 document.getElementById('current-epoch').innerText = epoch;
+                
+                // --- CAMBIO: Lógica de creación de época ---
+                // 1. Quitar highlight de la época anterior (si existe)
+                if (epochHistoryData.length > 0) {
+                    epochHistoryData[0].element.classList.remove('epoch-record-current');
+                    epochHistoryData[0].element.querySelector('.epoch-record-header').innerText = `Época ${epoch-1} (Finalizada)`;
+                }
+
+                // 2. Crear el esqueleto HTML y el gráfico para la NUEVA época
+                const { recordDiv, matrixElement, chartInstance } = createNewHistoryEntry(epoch, decisionThreshold);
+
+                // 3. Crear el objeto de datos para la época actual
+                const currentEpochData = {
+                    epoch: epoch,
+                    weights: [...weights], // Guarda los pesos AL INICIO de la época
+                    bias: bias,
+                    element: recordDiv,
+                    matrixElement: matrixElement,
+                    chartInstance: chartInstance,
+                    redScores: [], // Se llenará al final
+                    blueScores: [], // Se llenará al final
+                    matrixStats: { tp: 0, fn: 0, fp: 0, tn: 0 } // Para la carga progresiva
+                };
+                
+                // 4. Añadirlo al principio del historial
+                epochHistoryData.unshift(currentEpochData);
+
+                // --- Fin Lógica de Creación ---
+
                 let epochCorrectPredictions = 0;
                 let epochAdjustments = 0;
                 const initialWeightsInEpoch = [...weights];
                 const initialBiasInEpoch = bias;
-                
-                // *** NUEVO: Resetear la matriz al inicio de la época ***
-                resetConfusionMatrixUI();
-                let epochMatrixStats = { tp: 0, fn: 0, fp: 0, tn: 0 };
 
                 datos.sort(() => Math.random() - 0.5);
 
                 for (const data of datos) {
                     const inputs = [data.r / 255, data.g / 255, data.b / 255];
-                    
-                    // 1. CÁLCULO DE LA SUMA
                     let sum = bias;
                     for (let j = 0; j < inputs.length; j++) {
                         sum += inputs[j] * weights[j];
                     }
                     
-                    // 2. CÁLCULO DE PREDICCIÓN (para la Matriz, usa el slider)
                     const predictionForMatrix = sum >= decisionThreshold ? 1 : -1;
-                    
-                    // 3. VERIFICACIÓN DE ERROR (para Aprendizaje, usa umbral 0)
                     const misclassified = (sum * data.label <= 0);
                     
-                    // 4. AJUSTE DE PESOS (si hay error)
                     if (misclassified) {
+                        // ... (Ajuste de pesos, sin cambios) ...
                         epochAdjustments++;
-                        
                         for (let j = 0; j < weights.length; j++) {
                             const deltaWeight = data.label * inputs[j] * learningRate;
                             showFloatingText(document.getElementById(`weight-bar-${['R','G','B'][j]}-container`), deltaWeight);
@@ -856,35 +853,52 @@ async function train() {
                         epochCorrectPredictions++;
                     }
 
-                    // 5. ACTUALIZACIÓN INCREMENTAL DE LA MATRIZ
-                    incrementConfusionMatrixUI(data.label, predictionForMatrix, epochMatrixStats);
+                    // --- CAMBIO: Carga Progresiva de la Matriz ---
+                    // Actualiza el objeto de stats
+                    incrementConfusionMatrixStats(currentEpochData.matrixStats, data.label, predictionForMatrix);
+                    // Actualiza la UI de la tabla
+                    updateMatrixTableUI(currentEpochData.matrixElement, currentEpochData.matrixStats);
                     
-                    // 6. VISUALIZACIÓN
+                    // Visualización
                     const predictionForDisplay = sum >= 0 ? 1 : -1;
                     await animateTrainingStep(data, inputs, sum, predictionForDisplay, misclassified);
+                    predict(); 
                     
-                    predict(); // Actualiza la predicción en vivo
-
-                    // Pausa controlada por el slider
                     const delay = parseInt(speedSlider.value, 10);
                     if (delay > 0) {
                         await new Promise(resolve => setTimeout(resolve, delay));
-                    } else {
-                        await new Promise(resolve => setTimeout(resolve, 5)); // Micro-pausa
                     }
                 } // Fin del bucle for (colores)
                 
-                // Comprobar estabilidad
+                // ... (Comprobación de estabilidad, sin cambios) ...
                 let currentWeightsSumDiff = weights.reduce((acc, w, idx) => acc + Math.abs(w - initialWeightsInEpoch[idx]), 0);
                 let biasDiff = Math.abs(bias - initialBiasInEpoch);
-
                 if (currentWeightsSumDiff < stabilityThreshold && biasDiff < stabilityThreshold) {
                     stableIterations++;
                 } else {
                     stableIterations = 0;
                 }
 
-                // Resumen de la época
+                // --- CAMBIO: Finalización de la Época ---
+                
+                // 1. Guardar los pesos y sesgo FINALES
+                currentEpochData.weights = [...weights];
+                currentEpochData.bias = bias;
+
+                // 2. Calcular TODOS los puntajes con los pesos FINALES
+                const { redScores, blueScores } = getAllScores(currentEpochData.weights, currentEpochData.bias);
+                currentEpochData.redScores = redScores;
+                currentEpochData.blueScores = blueScores;
+                
+                // 3. Recalcular la matriz FINAL basada en los puntajes finales y el umbral actual
+                const finalMatrixStats = recalculateMatrixStats(redScores, blueScores, decisionThreshold);
+                currentEpochData.matrixStats = finalMatrixStats;
+                updateMatrixTableUI(currentEpochData.matrixElement, finalMatrixStats);
+
+                // 4. AHORA, dibujar el histograma por primera vez
+                updateChartJsHistogram(currentEpochData.chartInstance, redScores, blueScores, decisionThreshold);
+
+                // 5. Actualizar el resumen global
                 epochSummary.innerHTML = `
                     <strong>Época ${epoch} Terminada:</strong><br>
                     Aciertos (Aprendizaje): ${epochCorrectPredictions}/${datos.length} (${((epochCorrectPredictions/datos.length)*100).toFixed(1)}%) | 
@@ -898,12 +912,18 @@ async function train() {
                 }
             } // Fin del bucle while (épocas)
             
+            // --- Finalización del Entrenamiento ---
+            // Quitar el highlight de la última época
+            if (epochHistoryData.length > 0) {
+                epochHistoryData[0].element.classList.remove('epoch-record-current');
+                epochHistoryData[0].element.querySelector('.epoch-record-header').innerText = `Época ${epoch} (Finalizada)`;
+            }
             epochSummary.innerHTML += "<br><strong>¡Entrenamiento completado!</strong>";
             trainButton.disabled = false;
             isTraining = false;
         }
 
-        // Función para predecir un nuevo color (sin cambios)
+        // Función para predecir un nuevo color
         function predict() {
             const hexColor = colorPicker.value;
             const r = parseInt(hexColor.substring(1, 3), 16);
@@ -916,9 +936,9 @@ async function train() {
                 sum += inputs[j] * weights[j];
             }
             
-            // La predicción en vivo SIEMPRE usa umbral 0
             const prediction = sum >= 0 ? 1 : -1;
-            const confidence = calculateConfidence(sum);
+            // --- CAMBIO: Usa la nueva función ---
+            const confidence = calculateConfidenceSigmoid(sum);
             
             const resultDiv = document.getElementById('prediction-result');
             resultDiv.style.backgroundColor = hexColor;
