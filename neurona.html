@@ -6,6 +6,7 @@
     <title>Entendiendo el Perceptrón: Visualización Avanzada</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.2.1/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.18.2.min.js"></script>
     
     <style>
         /* Estilos generales */
@@ -42,21 +43,73 @@
             text-align: center;
         }
         code { background-color: #e4e6e8; padding: 3px 6px; border-radius: 4px; font-family: 'Courier New', Courier, monospace; color: #3d3d3d; }
-        pre { background-color: #2c3e50; color: #f8f8f2; padding: 20px; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; margin-bottom: 20px; }
-        pre code { background-color: transparent; padding: 0; color: inherit; }
         
-        /* Tablas de datos (sin cambios) */
-        .table-container { display: flex; gap: 20px; justify-content: space-around; flex-wrap: wrap; }
-        table { border-collapse: collapse; margin-top: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden; }
-        #rojos-table, #azules-table { width: 48%; min-width: 300px; }
-        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background-color: #3498db; color: white; font-weight: bold; }
-        tr:last-child td { border-bottom: none; }
+        /* --- CAMBIO: Estilo de Tablas de Colores --- */
+        .table-container { 
+            display: flex; 
+            gap: 20px; 
+            align-items: flex-start; /* Permite alturas diferentes */
+            flex-wrap: wrap; 
+        }
+        table.data-table { 
+            border-collapse: collapse; 
+            margin-top: 15px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
+            border-radius: 8px; /* Bordes redondeados */
+            overflow: hidden; /* Necesario para que el border-radius funcione en th */
+        }
+        /* Asignar anchos flexibles */
+        #rojos-table {
+            flex: 1; /* Ocupará 1 parte */
+            min-width: 250px;
+        }
+        #azules-table {
+            flex: 2; /* Ocupará 2 partes (más ancha) */
+            min-width: 300px;
+        }
+
+        .data-table th, .data-table td { 
+            padding: 6px 10px; 
+            text-align: left; 
+            border-bottom: 1px solid #ddd; 
+            font-size: 0.9em;
+        }
+        /* Altura de TH unificada por padding */
+        .data-table th { 
+            color: white; 
+            font-weight: bold; 
+        }
+        .data-table tr:last-child td { border-bottom: none; }
+        
+        /* Colores de TH específicos */
         .rojo-header { background-color: #e74c3c; }
         .azul-header { background-color: #3498db; }
-        .color-swatch { display: inline-block; width: 20px; height: 20px; border-radius: 50%; border: 1px solid #ccc; vertical-align: middle; margin-right: 10px; }
+        
+        .color-swatch { 
+            display: inline-block; 
+            width: 18px; 
+            height: 18px; 
+            border-radius: 50%; 
+            border: 1px solid #ccc; 
+            vertical-align: middle; 
+            margin-right: 8px; 
+            cursor: help;
+        }
 
-        /* Panel Interactivo (Modificado) */
+        /* Gráfico 3D */
+        #plot-3d-container {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #fdfdfd;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        #plot-3d {
+            width: 100%;
+            height: 500px;
+        }
+
+        /* Panel Interactivo */
         .interactive-panel {
             background-color: #ecf0f1;
             border: 1px solid #bdc3c7;
@@ -64,10 +117,7 @@
             padding: 20px;
             margin-top: 25px;
             display: grid;
-            /* CAMBIO: 'predict' ya no está en el grid */
-            grid-template-areas:
-                "train"
-                "visual";
+            grid-template-areas: "train" "visual";
             gap: 20px;
         }
         .train-controls { grid-area: train; text-align: center; }
@@ -78,33 +128,33 @@
         .speed-slider-container { margin-top: 15px; font-size: 0.9em; color: #555; display: flex; align-items: center; justify-content: center; gap: 10px; }
         input[type="range"] { flex-grow: 1; max-width: 300px; cursor: pointer; }
         
-        /* --- CAMBIO: Panel de Predicción Flotante --- */
+        /* Panel de Predicción Flotante (Movible) */
         .prediction-controls {
             position: fixed;
             top: 20px;
-            right: 20px;
+            right: 20px; 
             width: 280px;
             z-index: 1000;
-            grid-area: predict;
             text-align: center;
             background: #fff;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 6px 20px rgba(0,0,0,0.15);
             border: 1px solid #ddd;
+            cursor: grab; 
         }
+        .prediction-controls:active { cursor: grabbing; }
         .prediction-controls h3 { margin-top: 0; }
         input[type="color"] { width: 80px; height: 40px; border: none; cursor: pointer; vertical-align: middle; margin-left: 10px; }
         #prediction-result { font-weight: bold; font-size: 1.5em; transition: background-color 0.3s, color 0.3s; height: 60px; line-height: 60px; margin-top: 20px; border-radius: 6px; }
         #prediction-result .confidence-span { font-size: 0.8em; opacity: 0.85; margin-left: 5px; }
         .prediction-box { display: flex; align-items: center; justify-content: center; gap: 15px; }
-        /* --- Fin Panel Flotante --- */
         
-        /* Visualización del Entrenamiento (sin cambios) */
+        /* Visualización del Entrenamiento */
         #training-visualization { grid-area: visual; background: #fdfdfd; border: 1px solid #ddd; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
         #epoch-summary { font-size: 0.9em; padding: 10px; background-color: #f0f8ff; border-left: 5px solid #3498db; border-radius: 4px; text-align: left; }
         
-        /* Contenedor del Slider de Umbral */
+        /* Slider de Umbral */
         .threshold-slider-container {
             margin: 0 auto 15px auto;
             max-width: 380px;
@@ -117,87 +167,104 @@
         .threshold-slider-container label { display: block; margin-bottom: 5px; font-weight: bold; }
         .threshold-slider-container input[type="range"] { max-width: 100%; width: 100%; }
         
-        /* Matriz de Confusión (Estilos) */
+        /* --- CAMBIO: Matriz de Confusión Compacta y Bonita --- */
         .confusion-matrix {
             width: 100%;
-            max-width: 380px;
+            max-width: 250px; 
             margin: 0 auto;
             text-align: center;
+            border-collapse: collapse; /* Necesario para que overflow funcione bien */
+            border-radius: 8px; /* Bordes redondeados */
+            overflow: hidden; /* Para que los th/td no se salgan */
         }
-        .confusion-matrix th { background-color: #7f8c8d; font-size: 0.9em; }
+        .confusion-matrix th { 
+            background-color: #7f8c8d; 
+            font-size: 0.8em; 
+            padding: 5px;
+            line-height: 1.3;
+        }
+        /* Celda TH vacía transparente */
+        .confusion-matrix th.th-transparent {
+            background-color: transparent;
+        }
         .confusion-matrix td {
-            font-size: 1.4em;
+            font-size: 1.2em; 
             font-weight: bold;
             font-family: 'Courier New', Courier, monospace;
             background-color: #fdfdfd;
+            padding: 6px 4px;
+            border-bottom: 1px solid #ddd;
+            border-left: 1px solid #ddd;
         }
-        .confusion-matrix .cm-rr { background-color: #e8f5e9; color: #2e7d32; }
-        .confusion-matrix .cm-ra { background-color: #ffebee; color: #c62828; }
-        .confusion-matrix .cm-ar { background-color: #fff8e1; color: #f57f17; }
-        .confusion-matrix .cm-aa { background-color: #e3f2fd; color: #1565c0; }
+        .confusion-matrix tr:first-child td { border-top: 1px solid #ddd; }
+        .confusion-matrix td:first-child { border-left: none; }
 
-        /* Estilos del Histograma (Canvas) */
+
+        /* Colores de fuente para Matriz */
+        .font-neutral { color: #333; }
+        .font-red { color: #c62828; }
+        .font-blue { color: #1565c0; }
+        
+        .confusion-matrix .cm-rr { background-color: #e8f5e9; }
+        .confusion-matrix .cm-ra { background-color: #ffebee; }
+        .confusion-matrix .cm-ar { background-color: #fff8e1; }
+        .confusion-matrix .cm-aa { background-color: #e3f2fd; }
+
+        /* Leyenda de Matriz y RMSE */
+        .matrix-legend, .histo-legend {
+            font-size: 0.85em;
+            text-align: center;
+            color: #555;
+            margin-top: 8px;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            background: #f4f4f4;
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+        /* Estilos del Histograma (Altura Cambiada) */
         .histogram-side {
             width: 100%;
             max-width: 380px;
             margin: 15px auto 0 auto;
         }
         .histogram-side h4 { margin-top: 10px; }
-        .score-histogram-canvas { /* Clase para el canvas */
-            width: 100% !important; /* !important para sobreescribir Chart.js */
-            height: 120px !important;
+        .score-histogram-canvas { 
+            width: 100% !important; 
+            height: 240px !important; /* Altura duplicada */
             background-color: #fafafa;
             border: 1px solid #ddd;
             border-radius: 4px;
         }
         
-        /* --- CAMBIO: Contenedor del Historial --- */
-        #epoch-history-container {
-            margin-top: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
+        /* Contenedor del Historial (Layout Flex) */
+        #epoch-history-container { margin-top: 20px; display: flex; flex-direction: column; gap: 15px; }
         .epoch-record {
             background-color: #f9f9f9;
             border: 1px solid #e0e0e0;
             padding: 15px;
             border-radius: 8px;
-            /* CAMBIO: Layout Flex */
             display: flex;
-            flex-wrap: wrap; /* Para pantallas pequeñas */
+            flex-wrap: wrap; 
             align-items: flex-start;
             gap: 20px;
             transition: border-color 0.3s, box-shadow 0.3s;
         }
-        /* CAMBIO: Época actual destacada */
         .epoch-record-current {
             border-color: #3498db;
             box-shadow: 0 0 10px rgba(52,152,219,0.3);
             background-color: #f0f8ff;
         }
-        
-        .epoch-record-header {
-            width: 100%;
-            text-align: center;
-            margin-top: 0;
-            padding-bottom: 5px;
-            border-bottom: 1px dashed #ccc;
-        }
-        
-        /* CAMBIO: Lados Izquierdo y Derecho */
-        .matrix-side {
-            flex: 1;
-            min-width: 300px; /* Para que no se apriete */
-        }
-        .histogram-side {
-            flex: 1;
-            min-width: 300px; /* Para que no se apriete */
-        }
-        /* --- Fin Cambios de Historial --- */
+        .epoch-record-header { width: 100%; text-align: center; margin-top: 0; padding-bottom: 5px; border-bottom: 1px dashed #ccc; }
+        .matrix-side { flex: 1; min-width: 250px; }
+        .histogram-side { flex: 1; min-width: 300px; }
 
+        /* Gráfico de Evolución de Pesos */
+        #weights-chart-container { padding: 10px; background-color: #fafafa; border: 1px solid #ddd; border-radius: 8px; margin-top: 15px; }
+        #weightsHistoryChart { width: 100% !important; height: 250px !important; }
 
-        /* Animación de la Neurona (sin cambios) */
+        /* Animación de la Neurona */
         .neuron-diagram { display: grid; grid-template-columns: 1fr 2fr 1fr; align-items: center; justify-items: center; gap: 20px; margin: 20px 0; min-height: 250px; }
         .io-circle { width: 120px; height: 120px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 1.1em; font-weight: bold; color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); border: 4px solid #fff; box-shadow: 0 5px 15px rgba(0,0,0,0.15); transition: background-color 0.3s; text-align: center; padding: 5px; box-sizing: border-box; }
         .io-circle span { font-size: 0.8em; font-weight: normal; display: block; margin-top: 5px; word-break: break-word; }
@@ -218,12 +285,37 @@
         .weight-bar-track::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background-color: #bdc3c7; transform: translateX(-1px); }
         .weight-bar-value { position: absolute; top: 0; bottom: 0; background-color: #9b59b6; transition: all 0.2s ease-out; }
         #weight-value-text { width: 50px; text-align: right; }
-        .bias-sum-container { display: flex; justify-content: space-around; font-family: 'Courier New', Courier, monospace; font-size: 0.9em; margin-top: 10px; }
-        .bias-sum-container div { position: relative; }
+        
+        /* --- ARREGLO: Contenedor del Sesgo (Bias) --- */
+        .bias-sum-container { 
+            display: flex; 
+            justify-content: space-around; 
+            font-family: 'Courier New', Courier, monospace; 
+            font-size: 0.9em; 
+            margin-top: 10px;
+            min-height: 30px; /* Altura fija para estabilizar el layout */
+        }
+        .bias-sum-container div { 
+            position: relative; /* Sigue siendo relativo para el texto flotante */
+        }
 
-        /* Animación flotante (sin cambios) */
-        @keyframes float-up-fade { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-20px); } }
-        .floating-text { position: absolute; top: -5px; left: 50%; transform: translateX(-50%); font-size: 1.1em; font-weight: bold; animation: float-up-fade 2.4s ease-out forwards; pointer-events: none; text-shadow: 0 0 3px #fff; }
+        /* Animación flotante más larga */
+        @keyframes float-up-fade { 
+            0% { opacity: 1; transform: translateY(0); } 
+            50% { opacity: 1; transform: translateY(-10px); } 
+            100% { opacity: 0; transform: translateY(-30px); } 
+        }
+        .floating-text { 
+            position: absolute; 
+            top: -5px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            font-size: 1.1em; 
+            font-weight: bold; 
+            animation: float-up-fade 3.0s ease-out forwards; 
+            pointer-events: none; 
+            text-shadow: 0 0 3px #fff; 
+        }
         .floating-text.positive { color: #2ecc71; }
         .floating-text.negative { color: #e74c3c; }
         #feedback-message { min-height: 25px; text-align: center; font-weight: bold; font-size: 1.1em; }
@@ -234,16 +326,13 @@
         @media (max-width: 1100px) {
             .prediction-controls {
                 position: relative;
-                top: 0;
-                right: 0;
-                width: auto; /* Ancho completo */
+                top: 0; right: 0; left: 0;
+                width: auto;
                 margin-top: 20px;
-                grid-area: predict; /* Lo re-inserta en el grid si existe */
+                grid-area: predict;
+                cursor: default;
             }
-             .interactive-panel {
-                 /* Lo re-inserta en el grid si existe */
-                 grid-template-areas: "train" "visual" "predict";
-             }
+             .interactive-panel { grid-template-areas: "train" "visual" "predict"; }
         }
 
     </style>
@@ -253,28 +342,28 @@
     <div class="container">
         <h1>🧠 Entendiendo el Perceptrón: Visualización Avanzada</h1>
         <p>
-            Esta página te muestra cómo un <strong>perceptrón</strong> (una neurona artificial) aprende a tomar decisiones. Usaremos un clasificador de colores como ejemplo. La neurona aprenderá a distinguir entre colores "Rojos" y "Azules" a partir de sus valores <strong>R, G y B</strong>.
+            Esta página te muestra cómo un <strong>perceptrón</strong> aprende a distinguir entre colores "Rojos" y "Azules" a partir de sus valores <strong>R, G y B</strong>.
         </p>
         <h2>El Ejemplo: Clasificador Rojo vs. Azul</h2>
+        
         <div class="table-container">
-            <div id="rojos-container">
-                <h3 style="text-align: center;">🎨 Colores Rojos (Etiqueta: 1)</h3>
-                <table id="rojos-table">
-                    <thead><tr><th class="rojo-header">Color</th><th class="rojo-header">Nombre (CSS)</th><th class="rojo-header">RGB</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-            <div id="azules-container">
-                <h3 style="text-align: center;">🎨 Colores Azules (Etiqueta: -1)</h3>
-                <table id="azules-table">
-                    <thead><tr><th class="azul-header">Color</th><th class="azul-header">Nombre (CSS)</th><th class="azul-header">RGB</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-            </div>
+            <table id="rojos-table" class="data-table">
+                <thead></thead>
+                <tbody></tbody>
+            </table>
+            <table id="azules-table" class="data-table">
+                <thead></thead>
+                <tbody></tbody>
+            </table>
         </div>
 
-        <div class="interactive-panel">
+        <div id="plot-3d-container">
+            <h4>Visualización 3D (R, G, B) - ¡Arrastra para rotar!</h4>
+            <div id="plot-3d"></div>
+        </div>
 
+
+        <div class="interactive-panel">
             <div class="train-controls">
                 <h2>1. Panel de Entrenamiento</h2>
                 <button id="trainButton">Entrenar la Neurona</button>
@@ -303,7 +392,7 @@
                         <div class="weight-bar-container" id="weight-bar-B-container"><span>wB</span><div class="weight-bar-track"><div class="weight-bar-value" id="weight-bar-B"></div></div><span id="weight-value-B" class="weight-value-text">0.00</span></div>
                         <div class="bias-sum-container">
                             <div id="bias-container"><strong>Sesgo (Bias):</strong> <span id="bias-value">0.00</span></div>
-                            <div><strong>Suma:</strong> <span id="sum-value">0.00</span></div>
+                            <div id="sum-container"><strong>Suma:</strong> <span id="sum-value">0.00</span></div>
                         </div>
                     </div>
                     <div class"io-display">
@@ -315,6 +404,11 @@
                 
                 <div id="epoch-summary" class="epoch-summary"></div>
                 
+                <div id="weights-chart-container" style="display: none;">
+                    <h4>Evolución de Pesos y Sesgo (por Iteración)</h4>
+                    <canvas id="weightsHistoryChart"></canvas>
+                </div>
+
                 <div class="threshold-slider-container">
                     <label for="thresholdSlider">Umbral de Decisión Global: <span id="thresholdValue">0.00</span></label>
                     <input type="range" id="thresholdSlider" min="-2.0" max="2.0" step="0.05" value="0.0">
@@ -322,15 +416,12 @@
 
                 <div id="epoch-history-container">
                     </div>
-                
-                </div>
-            
-
+            </div>
         </div>
 
         <div class="prediction-controls">
             <h3>2. ¡Prueba la neurona en vivo!</h3>
-            <p>Mueve el selector y mira la predicción con los pesos actuales. (Esta prueba siempre usa un umbral de 0).</p>
+            <p>Mueve el selector y mira la predicción con los pesos actuales. (Umbral 0).</p>
             <div class="prediction-box">
                 <label for="colorPicker">Elige un color:</label>
                 <input type="color" id="colorPicker" value="#800080">
@@ -343,7 +434,6 @@
     <script>
         // --- DATOS DE ENTRENAMIENTO (Lista sin cambios) ---
         const datos = [
-            // --- Label 1 (Reds, Pinks, Oranges, Fuchsias) ---
             { name: 'IndianRed', r: 205, g: 92, b: 92, label: 1, hex: '#CD5C5C' },
             { name: 'LightCoral', r: 240, g: 128, b: 128, label: 1, hex: '#F08080' },
             { name: 'Salmon', r: 250, g: 128, b: 114, label: 1, hex: '#FA8072' },
@@ -364,8 +454,7 @@
             { name: 'Coral', r: 255, g: 127, b: 80, label: 1, hex: '#FF7F50' },
             { name: 'DarkOrange', r: 255, g: 140, b: 0, label: 1, hex: '#FF8C00' },
             { name: 'Orange', r: 255, g: 165, b: 0, label: 1, hex: '#FFA500' },
-            { name: 'Fuchsia', r: 255, g: 0, b: 255, label: 1, hex: '#FF00FF' }, // Fucsia/Magenta
-            // --- Label -1 (Blues, Violets, Cyans, Aquas) ---
+            { name: 'Fuchsia', r: 255, g: 0, b: 255, label: 1, hex: '#FF00FF' },
             { name: 'Lavender', r: 230, g: 230, b: 250, label: -1, hex: '#E6E6FA' },
             { name: 'MediumPurple', r: 147, g: 112, b: 219, label: -1, hex: '#9370DB' },
             { name: 'BlueViolet', r: 138, g: 43, b: 226, label: -1, hex: '#8A2BE2' },
@@ -409,18 +498,21 @@
         const maxWeightDisplay = 2.0;
         let isTraining = false;
         
-        // --- NUEVO: Historial de Épocas ---
-        let epochHistoryData = []; // Almacena {epoch, weights, bias, chartInstance, matrixElement, redScores, blueScores}
+        // --- Historial de Épocas ---
+        let epochHistoryData = []; 
+        
+        // --- Gráfico de Evolución de Pesos ---
+        let weightsChartInstance = null;
+        let globalIteration = 0;
+        const weightsChartContainer = document.getElementById('weights-chart-container');
 
-        // --- NUEVO: Constantes del Histograma ---
+        // --- Constantes del Histograma ---
         const HISTO_MIN = -1.0;
         const HISTO_MAX = 1.0;
-        const HISTO_BINS = 20; // -1.0 a 1.0 en pasos de 0.1
-        const HISTO_STEP = (HISTO_MAX - HISTO_MIN) / HISTO_BINS;
-        // Crea las etiquetas para los bins, ej: "-1.0", "-0.9", ... "0.9"
-        const histogramBins = Array.from({ length: HISTO_BINS }, (_, i) => {
-            return (HISTO_MIN + i * HISTO_STEP).toFixed(1);
-        });
+        const HISTO_BINS = 20; 
+        const HISTO_STEP = (HISTO_MAX - HISTO_MIN) / HISTO_BINS; // 0.1
+        // --- ARREGLO: El grosor de la barra está en unidades del eje, no píxeles ---
+        const HISTO_BAR_THICKNESS = HISTO_STEP * 0.95; // Ancho en unidades del eje X (ej: 0.095)
 
         // --- REFERENCIAS A ELEMENTOS DE LA UI ---
         const trainButton = document.getElementById('trainButton');
@@ -429,8 +521,6 @@
         const trainingVisualization = document.getElementById('training-visualization');
         const currentColorName = document.getElementById('current-color-name');
         const currentColorSwatch = document.getElementById('current-color-swatch');
-        
-        // Referencias del "Cerebro" (sin cambios)
         const inputBarR = document.querySelector('#input-bar-R .input-bar-value');
         const inputBarG = document.querySelector('#input-bar-G .input-bar-value');
         const inputBarB = document.querySelector('#input-bar-B .input-bar-value');
@@ -446,8 +536,6 @@
         const trainPredictionConfidence = document.getElementById('train-prediction-confidence');
         const feedbackMessage = document.getElementById('feedback-message');
         const epochSummary = document.getElementById('epoch-summary');
-
-        // --- Referencias (Matriz, Umbral e Histograma) ---
         const thresholdSlider = document.getElementById('thresholdSlider');
         const thresholdValue = document.getElementById('thresholdValue');
         const epochHistoryContainer = document.getElementById('epoch-history-container');
@@ -455,53 +543,170 @@
         // --- INICIALIZACIÓN DE LA PÁGINA ---
         document.addEventListener('DOMContentLoaded', () => {
             populateTables();
+            init3DPlot(); 
             trainButton.addEventListener('click', train);
             colorPicker.addEventListener('input', predict);
             
-            // --- CAMBIO: Listener del Slider Global ---
+            // --- Listener del Slider Global (Actualizado) ---
             thresholdSlider.addEventListener('input', () => {
                 decisionThreshold = parseFloat(thresholdSlider.value);
                 thresholdValue.innerText = decisionThreshold.toFixed(2);
                 
-                // Actualiza TODAS las épocas en el historial
                 for (const epochData of epochHistoryData) {
-                    // 1. Recalcular matriz con el umbral actual
-                    const matrixStats = recalculateMatrixStats(epochData.redScores, epochData.blueScores, decisionThreshold);
-                    
-                    // 2. Actualizar la tabla de la matriz
+                    const reds = epochData.redScoresInProgress || epochData.redScores;
+                    const blues = epochData.blueScoresInProgress || epochData.blueScores;
+                    const allScores = reds.map(s => ({sum: s, label: 1}))
+                                        .concat(blues.map(s => ({sum: s, label: -1})));
+
+                    const matrixStats = recalculateMatrixStats(reds, blues, decisionThreshold);
                     updateMatrixTableUI(epochData.matrixElement, matrixStats);
                     
-                    // 3. Actualizar la línea de umbral en el gráfico
+                    const rmse = calculateRMSE(allScores);
+                    updateHistoLegend(epochData.histoLegendElement, rmse);
+
                     if (epochData.chartInstance) {
-                        epochData.chartInstance.options.plugins.annotation.annotations.thresholdLine.value = decisionThreshold;
-                        epochData.chartInstance.update('none'); // 'none' para evitar animación
+                        epochData.chartInstance.options.plugins.annotation.annotations.thresholdLine.xMin = decisionThreshold;
+                        epochData.chartInstance.options.plugins.annotation.annotations.thresholdLine.xMax = decisionThreshold;
+                        epochData.chartInstance.update('none'); 
                     }
                 }
             });
+            
+            // --- Lógica para Mover Panel Flotante ---
+            makeDraggable(document.querySelector('.prediction-controls'));
             
             updateWeightBars();
             predict();
         });
 
-        function populateTables() {
-            // ... (Sin cambios) ...
-            const rojosTbody = document.querySelector('#rojos-table tbody');
-            const azulesTbody = document.querySelector('#azules-table tbody');
-            datos.forEach(color => {
-                const row = document.createElement('tr');
-                const rgb = `${color.r}, ${color.g}, ${color.b}`;
-                row.innerHTML = `
-                    <td><div class="color-swatch" style="background-color: rgb(${rgb})"></div></td>
-                    <td>${color.name}</td>
-                    <td>${rgb}</td>
-                `;
-                if (color.label === 1) rojosTbody.appendChild(row);
-                else azulesTbody.appendChild(row);
+        // --- Lógica para Mover Panel Flotante ---
+        function makeDraggable(element) {
+            let isDragging = false;
+            let offsetX = 0;
+            let offsetY = 0;
+
+            element.addEventListener('mousedown', (e) => {
+                if (e.target.tagName === 'INPUT') return;
+                isDragging = true;
+                const rect = element.getBoundingClientRect();
+                offsetX = e.clientX - rect.left;
+                offsetY = e.clientY - rect.top;
+                element.style.cursor = 'grabbing';
+                element.style.right = 'auto'; 
+                element.style.left = rect.left + 'px';
+                element.style.top = rect.top + 'px';  
+                e.preventDefault(); 
+            });
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                element.style.left = (e.clientX - offsetX) + 'px';
+                element.style.top = (e.clientY - offsetY) + 'px';
+                e.preventDefault();
+            });
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+                element.style.cursor = 'grab';
             });
         }
+
+
+        // --- CAMBIO: Llenar tablas (Compactas y con Tooltip) ---
+        function populateTables() {
+            const rojosTbody = document.querySelector('#rojos-table tbody');
+            const rojosThead = document.querySelector('#rojos-table thead');
+            rojosTbody.innerHTML = ''; // Limpiar
+            // Inyectar el header rojo
+            rojosThead.innerHTML = `<tr><th class="rojo-header" colspan="2">🎨 Colores Rojos (Etiqueta: 1)</th></tr>`;
+            
+            const azulesTbody = document.querySelector('#azules-table tbody');
+            const azulesThead = document.querySelector('#azules-table thead');
+            azulesTbody.innerHTML = ''; // Limpiar
+            // Inyectar el header azul
+            azulesThead.innerHTML = `<tr><th class="azul-header" colspan="4">🎨 Colores Azules (Etiqueta: -1)</th></tr>`;
+
+            
+            // Tabla de Rojos (1 columna)
+            const rojos = datos.filter(c => c.label === 1);
+            rojos.forEach(color => {
+                const row = document.createElement('tr');
+                const rgb = `${color.r}, ${color.g}, ${color.b}`;
+                const title = `RGB: (${rgb})`;
+                row.innerHTML = `
+                    <td><div class="color-swatch" style="background-color: rgb(${rgb})" title="${title}"></div></td>
+                    <td>${color.name}</td>
+                `;
+                rojosTbody.appendChild(row);
+            });
+            
+            // Tabla de Azules (2 columnas)
+            const azules = datos.filter(c => c.label === -1);
+            for (let i = 0; i < azules.length; i += 2) {
+                const row = document.createElement('tr');
+                
+                // Columna 1
+                const color1 = azules[i];
+                const rgb1 = `${color1.r}, ${color1.g}, ${color1.b}`;
+                const title1 = `RGB: (${rgb1})`;
+                row.innerHTML += `
+                    <td><div class="color-swatch" style="background-color: rgb(${rgb1})" title="${title1}"></div></td>
+                    <td>${color1.name}</td>
+                `;
+                
+                // Columna 2 (si existe)
+                if (azules[i+1]) {
+                    const color2 = azules[i+1];
+                    const rgb2 = `${color2.r}, ${color2.g}, ${color2.b}`;
+                    const title2 = `RGB: (${rgb2})`;
+                     row.innerHTML += `
+                        <td><div class="color-swatch" style="background-color: rgb(${rgb2})" title="${title2}"></div></td>
+                        <td>${color2.name}</td>
+                    `;
+                } else {
+                    row.innerHTML += `<td></td><td></td>`;
+                }
+                azulesTbody.appendChild(row);
+            }
+        }
         
-        // --- FUNCIONES DE VISUALIZACIÓN (Animación) ---
-        // ... (Sin cambios) ...
+        // --- Gráfico 3D con Plotly ---
+        function init3DPlot() {
+            const rojos = datos.filter(d => d.label === 1);
+            const azules = datos.filter(d => d.label === -1);
+
+            const traceRojos = {
+                x: rojos.map(d => d.r),
+                y: rojos.map(d => d.g),
+                z: rojos.map(d => d.b),
+                mode: 'markers',
+                marker: { color: 'rgb(220, 20, 60)', size: 6, opacity: 0.8 },
+                type: 'scatter3d',
+                name: 'Rojos'
+            };
+
+            const traceAzules = {
+                x: azules.map(d => d.r),
+                y: azules.map(d => d.g),
+                z: azules.map(d => d.b),
+                mode: 'markers',
+                marker: { color: 'rgb(30, 144, 255)', size: 6, opacity: 0.8 },
+                type: 'scatter3d',
+                name: 'Azules'
+            };
+
+            const layout = {
+                title: 'Espacio de Color RGB',
+                scene: {
+                    xaxis: {title: 'Rojo (R)'},
+                    yaxis: {title: 'Verde (G)'},
+                    zaxis: {title: 'Azul (B)'},
+                },
+                margin: { l: 0, r: 0, b: 0, t: 40 }
+            };
+
+            Plotly.newPlot('plot-3d', [traceRojos, traceAzules], layout, {responsive: true});
+        }
+        
+        // --- FUNCIONES DE VISUALIZACIÓN (Animación, sin cambios) ---
         function updateInputBars(inputs) {
             inputBarR.style.width = (inputs[0] * 100) + '%';
             inputBarG.style.width = (inputs[1] * 100) + '%';
@@ -541,7 +746,7 @@
             textEl.addEventListener('animationend', () => textEl.remove());
         }
 
-        // --- CAMBIO: Función de Confianza Sigmoide (de la vez pasada) ---
+        // --- Función de Confianza Sigmoide (sin cambios) ---
         function calculateConfidenceSigmoid(sum) {
             const probabilityRed = 1 / (1 + Math.exp(-sum));
             let confidencePercent;
@@ -554,13 +759,12 @@
         }
 
         async function animateTrainingStep(data, inputs, sum, prediction, misclassified) {
-            // ... (Igual que antes, pero usa la nueva función de confianza) ...
             currentColorName.innerText = data.name;
             currentColorSwatch.style.backgroundColor = data.hex;
             updateInputBars(inputs);
             updateWeightBars();
             sumValue.innerText = sum.toFixed(3);
-            const confidence = calculateConfidenceSigmoid(sum); // <-- Usando Sigmoide
+            const confidence = calculateConfidenceSigmoid(sum);
             if (prediction === 1) {
                 neuronPrediction.innerText = "ROJO";
                 neuronPrediction.className = 'io-circle predict-red';
@@ -579,9 +783,8 @@
             }
         }
         
-        // --- NUEVAS FUNCIONES: Matriz Dinámica, Histograma e Historial ---
+        // --- FUNCIONES: Matriz, Histograma e Historial ---
         
-        // --- NUEVO: Incrementa un objeto de estadísticas de matriz ---
         function incrementConfusionMatrixStats(matrixStats, label, prediction) {
             if (label === 1 && prediction === 1) matrixStats.tp++;
             else if (label === 1 && prediction === -1) matrixStats.fn++;
@@ -589,22 +792,21 @@
             else if (label === -1 && prediction === -1) matrixStats.tn++;
         }
         
-        // --- NUEVO: Calcula puntajes para un set de pesos/sesgo ---
         function getAllScores(currentWeights, currentBias) {
-            let redScores = [], blueScores = [];
+            let redScores = [], blueScores = [], allScores = [];
             for (const data of datos) {
                 const inputs = [data.r / 255, data.g / 255, data.b / 255];
                 let sum = currentBias;
                 for (let j = 0; j < inputs.length; j++) {
                     sum += inputs[j] * currentWeights[j];
                 }
+                allScores.push({ sum: sum, label: data.label });
                 if (data.label === 1) redScores.push(sum);
                 else blueScores.push(sum);
             }
-            return { redScores, blueScores };
+            return { redScores, blueScores, allScores };
         }
 
-        // --- NUEVO: Recalcula una matriz desde cero basado en puntajes ---
         function recalculateMatrixStats(redScores, blueScores, threshold) {
             let matrixStats = { tp: 0, fn: 0, fp: 0, tn: 0 };
             for (const score of redScores) {
@@ -620,73 +822,94 @@
             return matrixStats;
         }
 
-        // --- NUEVO: Actualiza celdas de una tabla de matriz específica ---
+        // CAMBIO: Actualiza celdas de matriz Y leyenda
         function updateMatrixTableUI(tableElement, stats) {
-            tableElement.querySelector('.cm-rr').innerText = stats.tp;
-            tableElement.querySelector('.cm-ra').innerText = stats.fn;
-            tableElement.querySelector('.cm-ar').innerText = stats.fp;
-            tableElement.querySelector('.cm-aa').innerText = stats.tn;
+            const rr = tableElement.querySelector('.cm-rr');
+            const ra = tableElement.querySelector('.cm-ra');
+            const ar = tableElement.querySelector('.cm-ar');
+            const aa = tableElement.querySelector('.cm-aa');
+            
+            rr.innerText = stats.tp;
+            ra.innerText = stats.fn;
+            ar.innerText = stats.fp;
+            aa.innerText = stats.tn;
+            
+            // Colores
+            rr.className = 'cm-rr font-red';
+            aa.className = 'cm-aa font-blue';
+            ra.className = 'cm-ra font-neutral';
+            ar.className = 'cm-ar font-neutral';
+            
+            // Leyenda (Busca el *siguiente* elemento que sea la leyenda)
+            const legend = tableElement.nextElementSibling;
+            if (legend && legend.classList.contains('matrix-legend')) {
+                // CAMBIO: Texto de leyenda
+                legend.innerText = `Clasificaciones Incorrectas: ${stats.fn + stats.fp}`;
+            }
         }
 
-        // --- CAMBIO: Función para procesar scores en bins para Chart.js ---
-        function binScores(scores) {
+        // Calcular RMSE
+        function calculateRMSE(scoresList) {
+            if (scoresList.length === 0) return 0;
+            let sumSqError = 0;
+            for (const { sum, label } of scoresList) {
+                sumSqError += Math.pow(sum - label, 2);
+            }
+            return Math.sqrt(sumSqError / scoresList.length);
+        }
+        
+        // Actualizar leyenda de Histograma (RMSE)
+        function updateHistoLegend(legendElement, rmse) {
+             if (legendElement) {
+                legendElement.innerText = `Error (RMSE): ${rmse.toFixed(4)}`;
+            }
+        }
+
+        // Histograma usa EJE LINEAL
+        function binScoresForLinearAxis(scores) {
             let bins = new Array(HISTO_BINS).fill(0);
             for (const score of scores) {
-                let binIndex = Math.floor(((score - HISTO_MIN) / HISTO_MAX - HISTO_MIN) * HISTO_BINS);
-                binIndex = Math.floor((score - HISTO_MIN) / HISTO_STEP);
-                binIndex = Math.max(0, Math.min(HISTO_BINS - 1, binIndex)); // Agrupa scores fuera de rango
+                let binIndex = Math.floor((score - HISTO_MIN) / HISTO_STEP);
+                binIndex = Math.max(0, Math.min(HISTO_BINS - 1, binIndex)); 
                 bins[binIndex]++;
             }
-            return bins;
+            return bins.map((count, i) => ({
+                x: HISTO_MIN + (i * HISTO_STEP) + (HISTO_STEP / 2),
+                y: count
+            }));
         }
 
-        // --- CAMBIO: Crea un NUEVO histograma Chart.js ---
+        // createChartJsHistogram (Lineal, Punteado)
         function createChartJsHistogram(canvasElement, threshold) {
             const ctx = canvasElement.getContext('2d');
             return new Chart(ctx, {
-                type: 'bar',
+                type: 'bar', // Sigue siendo 'bar'
                 data: {
-                    labels: histogramBins,
                     datasets: [
-                        {
-                            label: 'Rojos',
-                            data: [], // Vacío al inicio
-                            backgroundColor: 'rgba(231, 76, 60, 0.7)',
-                            borderColor: 'rgba(231, 76, 60, 1)',
-                            borderWidth: 1
-                        },
-                        {
-                            label: 'Azules',
-                            data: [], // Vacío al inicio
-                            backgroundColor: 'rgba(52, 152, 219, 0.7)',
-                            borderColor: 'rgba(52, 152, 219, 1)',
-                            borderWidth: 1
-                        }
+                        { label: 'Rojos', data: [], backgroundColor: 'rgba(231, 76, 60, 0.7)', barThickness: HISTO_BAR_THICKNESS },
+                        { label: 'Azules', data: [], backgroundColor: 'rgba(52, 152, 219, 0.7)', barThickness: HISTO_BAR_THICKNESS }
                     ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: false,
                     scales: {
-                        x: { stacked: true },
+                        x: { 
+                            type: 'linear', // Eje X lineal
+                            min: HISTO_MIN,
+                            max: HISTO_MAX,
+                            stacked: true 
+                        },
                         y: {
                             stacked: true,
-                            ticks: {
-                                // Muestra los ticks negativos como positivos (ej: -5 -> 5)
-                                callback: function(value) { return Math.abs(value); }
-                            }
+                            ticks: { callback: function(value) { return Math.abs(value); } }
                         }
                     },
                     plugins: {
                         tooltip: {
-                            callbacks: {
-                                // Muestra el valor del tooltip como positivo
-                                label: function(context) {
-                                    return `${context.dataset.label}: ${Math.abs(context.raw)}`;
-                                }
-                            }
+                            callbacks: { label: function(context) { return `${context.dataset.label}: ${Math.abs(context.raw.y)}`; } }
                         },
-                        // CAMBIO: Configuración de la línea de umbral
                         annotation: {
                             annotations: {
                                 thresholdLine: {
@@ -695,11 +918,7 @@
                                     xMax: threshold,
                                     borderColor: 'rgb(44, 62, 80)',
                                     borderWidth: 3,
-                                    label: {
-                                        content: 'Umbral',
-                                        enabled: true,
-                                        position: 'start'
-                                    }
+                                    borderDash: [6, 6] // Línea punteada
                                 }
                             }
                         }
@@ -708,63 +927,120 @@
             });
         }
 
-        // --- CAMBIO: Actualiza un histograma Chart.js existente ---
-        function updateChartJsHistogram(chartInstance, redScores, blueScores, threshold) {
-            if (!chartInstance) return;
-            
-            const redBins = binScores(redScores);
-            // Los scores azules se hacen negativos para que se dibujen hacia abajo
-            const blueBins = binScores(blueScores).map(count => -count);
-
-            chartInstance.data.datasets[0].data = redBins;
-            chartInstance.data.datasets[1].data = blueBins;
-            
-            // Actualiza la línea de umbral
-            chartInstance.options.plugins.annotation.annotations.thresholdLine.xMin = threshold;
-            chartInstance.options.plugins.annotation.annotations.thresholdLine.xMax = threshold;
-            
-            chartInstance.update();
-        }
-
-
-        // --- NUEVO: Crea una entrada en el historial ---
+        // Crea una entrada en el historial (con leyendas y TH coloreados)
         function createNewHistoryEntry(epoch, threshold) {
             const recordDiv = document.createElement('div');
-            recordDiv.className = 'epoch-record epoch-record-current'; // Inicia como "actual"
+            recordDiv.className = 'epoch-record epoch-record-current'; 
             recordDiv.id = `epoch-record-${epoch}`;
             
-            // Crear el HTML para la nueva entrada
+            // CAMBIO: HTML con TH transparent y spans de color
             recordDiv.innerHTML = `
                 <h4 class="epoch-record-header">Época ${epoch} (Procesando...)</h4>
                 
                 <div class="matrix-side">
                      <h4>Matriz de Confusión</h4>
                     <table class="confusion-matrix" id="matrix-epoch-${epoch}">
-                        <thead><tr><th></th><th>Predicción: ROJO</th><th>Predicción: AZUL</th></tr></thead>
+                        <thead>
+                            <tr>
+                                <th class="th-transparent"></th>
+                                <th>Predicción:<br><span style="color: #e74c3c; font-weight: bold;">ROJO</span></th>
+                                <th>Predicción:<br><span style="color: #3498db; font-weight: bold;">AZUL</span></th>
+                            </tr>
+                        </thead>
                         <tbody>
-                            <tr><th>Real: ROJO</th><td class="cm-rr">0</td><td class="cm-ra">0</td></tr>
-                            <tr><th>Real: AZUL</th><td class="cm-ar">0</td><td class="cm-aa">0</td></tr>
+                            <tr>
+                                <th>Real: <span style="color: #e74c3c; font-weight: bold;">ROJO</span></th>
+                                <td class="cm-rr font-neutral">0</td><td class="cm-ra font-neutral">0</td>
+                            </tr>
+                            <tr>
+                                <th>Real: <span style="color: #3498db; font-weight: bold;">AZUL</span></th>
+                                <td class="cm-ar font-neutral">0</td><td class="cm-aa font-neutral">0</td>
+                            </tr>
                         </tbody>
                     </table>
+                    <div class="matrix-legend" id="matrix-legend-${epoch}">Clasificaciones Incorrectas: 0</div>
                 </div>
                 
                 <div class="histogram-side">
-                     <h4>Histograma de Salida (Final)</h4>
+                     <h4>Histograma de Salida</h4>
                      <canvas id="canvas-epoch-${epoch}" class="score-histogram-canvas"></canvas>
+                     <div class="histo-legend" id="histo-legend-${epoch}">Error (RMSE): 0.0000</div>
                 </div>
             `;
             
-            // Añadir al principio del contenedor
             epochHistoryContainer.prepend(recordDiv);
             
-            // Encontrar los elementos que acabamos de crear
             const canvas = recordDiv.querySelector(`#canvas-epoch-${epoch}`);
             const matrixElement = recordDiv.querySelector(`#matrix-epoch-${epoch}`);
+            const histoLegendElement = recordDiv.querySelector(`#histo-legend-${epoch}`); 
             
-            // Crear e inicializar el gráfico
             const chartInstance = createChartJsHistogram(canvas, threshold);
             
-            return { recordDiv, matrixElement, chartInstance };
+            return { recordDiv, matrixElement, chartInstance, histoLegendElement }; 
+        }
+
+        // --- Gráfico de Evolución de Pesos (sin cambios) ---
+        function initWeightsChart() {
+            if (weightsChartInstance) {
+                weightsChartInstance.destroy();
+            }
+            const ctx = document.getElementById('weightsHistoryChart').getContext('2d');
+            weightsChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [0], 
+                    datasets: [
+                        { label: 'Peso R', data: [weights[0]], borderColor: 'rgba(231, 76, 60, 1)', tension: 0.1, pointRadius: 0, fill: false },
+                        { label: 'Peso G', data: [weights[1]], borderColor: 'rgba(46, 204, 113, 1)', tension: 0.1, pointRadius: 0, fill: false },
+                        { label: 'Peso B', data: [weights[2]], borderColor: 'rgba(52, 152, 219, 1)', tension: 0.1, pointRadius: 0, fill: false },
+                        { label: 'Sesgo', data: [bias], borderColor: 'rgba(142, 68, 173, 1)', tension: 0.1, pointRadius: 0, fill: false }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    scales: {
+                        x: { title: { display: true, text: 'Iteración' } },
+                        y: { title: { display: true, text: 'Valor' } }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+            weightsChartContainer.style.display = 'block';
+        }
+
+        function updateWeightsChart() {
+            if (!weightsChartInstance) return;
+            weightsChartInstance.data.labels.push(globalIteration);
+            weightsChartInstance.data.datasets[0].data.push(weights[0]);
+            weightsChartInstance.data.datasets[1].data.push(weights[1]);
+            weightsChartInstance.data.datasets[2].data.push(weights[2]);
+            weightsChartInstance.data.datasets[3].data.push(bias);
+            if (parseInt(speedSlider.value, 10) > 10) {
+                 weightsChartInstance.update('none');
+            }
+        }
+        
+        // --- Histograma Progresivo (Actualizado) ---
+        function updateProgressiveHistogram(epochData) {
+            const redData = binScoresForLinearAxis(epochData.redScoresInProgress);
+            const blueData = binScoresForLinearAxis(epochData.blueScoresInProgress)
+                                 .map(d => ({ x: d.x, y: -d.y })); 
+            
+            epochData.chartInstance.data.datasets[0].data = redData;
+            epochData.chartInstance.data.datasets[1].data = blueData;
+            
+            const allScores = epochData.redScoresInProgress.map(s => ({sum: s, label: 1}))
+                                .concat(epochData.blueScoresInProgress.map(s => ({sum: s, label: -1})));
+            const rmse = calculateRMSE(allScores);
+            updateHistoLegend(epochData.histoLegendElement, rmse);
+            
+             if (parseInt(speedSlider.value, 10) > 10) {
+                 epochData.chartInstance.update('none');
+             }
         }
 
         
@@ -777,11 +1053,12 @@
             trainingVisualization.style.display = 'block';
             epochSummary.innerHTML = 'Iniciando entrenamiento...';
             
-            // --- NUEVO: Limpiar historial ---
-            epochHistoryData.forEach(data => data.chartInstance.destroy()); // Destruir charts viejos
+            epochHistoryData.forEach(data => data.chartInstance.destroy());
             epochHistoryData = [];
             epochHistoryContainer.innerHTML = '';
 
+            globalIteration = 0;
+            initWeightsChart();
 
             let stableIterations = 0;
             const stabilityThreshold = 0.0001;
@@ -793,33 +1070,29 @@
                 epoch++;
                 document.getElementById('current-epoch').innerText = epoch;
                 
-                // --- CAMBIO: Lógica de creación de época ---
-                // 1. Quitar highlight de la época anterior (si existe)
                 if (epochHistoryData.length > 0) {
                     epochHistoryData[0].element.classList.remove('epoch-record-current');
                     epochHistoryData[0].element.querySelector('.epoch-record-header').innerText = `Época ${epoch-1} (Finalizada)`;
                 }
 
-                // 2. Crear el esqueleto HTML y el gráfico para la NUEVA época
-                const { recordDiv, matrixElement, chartInstance } = createNewHistoryEntry(epoch, decisionThreshold);
+                const { recordDiv, matrixElement, chartInstance, histoLegendElement } = createNewHistoryEntry(epoch, decisionThreshold);
 
-                // 3. Crear el objeto de datos para la época actual
                 const currentEpochData = {
-                    epoch: epoch,
-                    weights: [...weights], // Guarda los pesos AL INICIO de la época
+                    epoch: epoch, 
+                    weights: [...weights], 
                     bias: bias,
                     element: recordDiv,
                     matrixElement: matrixElement,
                     chartInstance: chartInstance,
-                    redScores: [], // Se llenará al final
-                    blueScores: [], // Se llenará al final
-                    matrixStats: { tp: 0, fn: 0, fp: 0, tn: 0 } // Para la carga progresiva
+                    histoLegendElement: histoLegendElement,
+                    matrixStats: { tp: 0, fn: 0, fp: 0, tn: 0 },
+                    redScoresInProgress: [],
+                    blueScoresInProgress: [],
+                    redScores: [], 
+                    blueScores: [] 
                 };
                 
-                // 4. Añadirlo al principio del historial
                 epochHistoryData.unshift(currentEpochData);
-
-                // --- Fin Lógica de Creación ---
 
                 let epochCorrectPredictions = 0;
                 let epochAdjustments = 0;
@@ -835,11 +1108,13 @@
                         sum += inputs[j] * weights[j];
                     }
                     
+                    if (data.label === 1) currentEpochData.redScoresInProgress.push(sum);
+                    else currentEpochData.blueScoresInProgress.push(sum);
+
                     const predictionForMatrix = sum >= decisionThreshold ? 1 : -1;
                     const misclassified = (sum * data.label <= 0);
                     
                     if (misclassified) {
-                        // ... (Ajuste de pesos, sin cambios) ...
                         epochAdjustments++;
                         for (let j = 0; j < weights.length; j++) {
                             const deltaWeight = data.label * inputs[j] * learningRate;
@@ -853,13 +1128,14 @@
                         epochCorrectPredictions++;
                     }
 
-                    // --- CAMBIO: Carga Progresiva de la Matriz ---
-                    // Actualiza el objeto de stats
+                    globalIteration++;
+                    updateWeightsChart();
+
                     incrementConfusionMatrixStats(currentEpochData.matrixStats, data.label, predictionForMatrix);
-                    // Actualiza la UI de la tabla
                     updateMatrixTableUI(currentEpochData.matrixElement, currentEpochData.matrixStats);
                     
-                    // Visualización
+                    updateProgressiveHistogram(currentEpochData);
+
                     const predictionForDisplay = sum >= 0 ? 1 : -1;
                     await animateTrainingStep(data, inputs, sum, predictionForDisplay, misclassified);
                     predict(); 
@@ -870,7 +1146,6 @@
                     }
                 } // Fin del bucle for (colores)
                 
-                // ... (Comprobación de estabilidad, sin cambios) ...
                 let currentWeightsSumDiff = weights.reduce((acc, w, idx) => acc + Math.abs(w - initialWeightsInEpoch[idx]), 0);
                 let biasDiff = Math.abs(bias - initialBiasInEpoch);
                 if (currentWeightsSumDiff < stabilityThreshold && biasDiff < stabilityThreshold) {
@@ -879,26 +1154,30 @@
                     stableIterations = 0;
                 }
 
-                // --- CAMBIO: Finalización de la Época ---
+                // --- Finalización de la Época ---
                 
-                // 1. Guardar los pesos y sesgo FINALES
                 currentEpochData.weights = [...weights];
                 currentEpochData.bias = bias;
-
-                // 2. Calcular TODOS los puntajes con los pesos FINALES
-                const { redScores, blueScores } = getAllScores(currentEpochData.weights, currentEpochData.bias);
+                
+                // Obtenemos los scores finales para guardarlos (para el slider)
+                const { redScores, blueScores, allScores } = getAllScores(currentEpochData.weights, currentEpochData.bias);
                 currentEpochData.redScores = redScores;
                 currentEpochData.blueScores = blueScores;
                 
-                // 3. Recalcular la matriz FINAL basada en los puntajes finales y el umbral actual
+                // Borramos los 'inProgress' que ya no se necesitan
+                delete currentEpochData.redScoresInProgress; 
+                delete currentEpochData.blueScoresInProgress;
+
+                // Recalculamos la matriz final y el RMSE con los datos finales
                 const finalMatrixStats = recalculateMatrixStats(redScores, blueScores, decisionThreshold);
-                currentEpochData.matrixStats = finalMatrixStats;
                 updateMatrixTableUI(currentEpochData.matrixElement, finalMatrixStats);
 
-                // 4. AHORA, dibujar el histograma por primera vez
-                updateChartJsHistogram(currentEpochData.chartInstance, redScores, blueScores, decisionThreshold);
+                const finalRmse = calculateRMSE(allScores);
+                updateHistoLegend(currentEpochData.histoLegendElement, finalRmse);
 
-                // 5. Actualizar el resumen global
+                // Forzar actualización final de alta calidad del histograma
+                currentEpochData.chartInstance.update(); 
+
                 epochSummary.innerHTML = `
                     <strong>Época ${epoch} Terminada:</strong><br>
                     Aciertos (Aprendizaje): ${epochCorrectPredictions}/${datos.length} (${((epochCorrectPredictions/datos.length)*100).toFixed(1)}%) | 
@@ -906,6 +1185,10 @@
                     Estabilidad: ${stableIterations}/${maxStableIterations}
                 `;
                 
+                if (parseInt(speedSlider.value, 10) <= 10) {
+                    weightsChartInstance.update('none');
+                }
+
                 const delay = parseInt(speedSlider.value, 10);
                 if (delay > 100) {
                     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -913,7 +1196,6 @@
             } // Fin del bucle while (épocas)
             
             // --- Finalización del Entrenamiento ---
-            // Quitar el highlight de la última época
             if (epochHistoryData.length > 0) {
                 epochHistoryData[0].element.classList.remove('epoch-record-current');
                 epochHistoryData[0].element.querySelector('.epoch-record-header').innerText = `Época ${epoch} (Finalizada)`;
@@ -923,7 +1205,7 @@
             isTraining = false;
         }
 
-        // Función para predecir un nuevo color
+        // --- Función de predicción y auxiliar (sin cambios) ---
         function predict() {
             const hexColor = colorPicker.value;
             const r = parseInt(hexColor.substring(1, 3), 16);
@@ -937,7 +1219,6 @@
             }
             
             const prediction = sum >= 0 ? 1 : -1;
-            // --- CAMBIO: Usa la nueva función ---
             const confidence = calculateConfidenceSigmoid(sum);
             
             const resultDiv = document.getElementById('prediction-result');
@@ -951,8 +1232,6 @@
                 resultDiv.style.color = isColorDark(r, g, b) ? 'white' : 'black';
             }
         }
-
-        // --- FUNCIONES AUXILIARES ---
         function isColorDark(r, g, b) {
             const luminosity = (0.2126 * r + 0.7152 * g + 0.0722 * b);
             return luminosity < 140;
