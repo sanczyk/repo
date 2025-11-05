@@ -549,46 +549,38 @@
             { name: 'MidnightBlue', r: 25, g: 25, b: 112, label: -1, hex: '#191970' }
         ];
 
-        // --- PARÁMETROS DEL PERCEPTRÓN ---
-        let weights = [(Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2];
-        let bias = (Math.random() - 0.5) * 2;
-        let decisionThreshold = 0.0;
-        // --- CORRECCIÓN: Cambiado de const a let ---
-        let learningRate = 0.05; 
-        const maxWeightDisplay = 2.0;
-        let isTraining = false;
-        
-        // --- CORRECCIÓN: Nuevas variables de estado ---
-        let trainingInitialized = false;
-        let currentEpoch = 0;
-        
-        // --- Historial de Épocas ---
-        let epochHistoryData = []; 
-        
-        // --- Gráfico de Evolución de Pesos ---
-        let weightsChartInstance = null;
-        let globalIteration = 0;
-        const weightsChartContainer = document.getElementById('weights-chart-container');
-
-        // --- Constantes del Histograma ---
         const HISTO_MIN = -1.0;
         const HISTO_MAX = 1.0;
-        const HISTO_BINS = 20; 
-        const HISTO_STEP = (HISTO_MAX - HISTO_MIN) / HISTO_BINS; // 0.1
-        // --- ARREGLO CRÍTICO: El grosor de la barra (barThickness) debe estar en unidades del eje, no en píxeles. ---
-        // const HISTO_BAR_THICKNESS = HISTO_STEP * 0.95; // Ej: 0.095 // <-- Ya no se usa
+        const HISTO_BINS = 20;
+        const HISTO_STEP = (HISTO_MAX - HISTO_MIN) / HISTO_BINS;
 
-        // --- REFERENCIAS A ELEMENTOS DE LA UI ---
+        let weights = [0, 0, 0];
+        let bias = 0;
+        let learningRate = 0.05;
+        let decisionThreshold = 0.0;
+        let isTraining = false;
+        let trainingInitialized = false;
+        let currentEpoch = 0;
+        let epochHistoryData = [];
+        let weightsChartInstance = null;
+        let globalIteration = 0;
+        const maxWeightDisplay = 2.0;
+
+        const rojosTable = document.getElementById('rojos-table');
+        const azulesTable = document.getElementById('azules-table');
+        const plot3d = document.getElementById('plot-3d');
         const trainButton = document.getElementById('trainButton');
         const trainOneEpochButton = document.getElementById('trainOneEpochButton');
-        const colorPicker = document.getElementById('colorPicker');
+        const learningRateSlider = document.getElementById('learningRateSlider');
+        const learningRateValue = document.getElementById('learningRateValue');
         const speedSlider = document.getElementById('speedSlider');
+        const colorPicker = document.getElementById('colorPicker');
         const trainingVisualization = document.getElementById('training-visualization');
-        const currentColorName = document.getElementById('current-color-name');
         const currentColorSwatch = document.getElementById('current-color-swatch');
-        const inputBarR = document.querySelector('#input-bar-R .input-bar-value');
-        const inputBarG = document.querySelector('#input-bar-G .input-bar-value');
-        const inputBarB = document.querySelector('#input-bar-B .input-bar-value');
+        const currentColorName = document.getElementById('current-color-name');
+        const inputBarRValue = document.querySelector('#input-bar-R .input-bar-value');
+        const inputBarGValue = document.querySelector('#input-bar-G .input-bar-value');
+        const inputBarBValue = document.querySelector('#input-bar-B .input-bar-value');
         const weightBarR = document.getElementById('weight-bar-R');
         const weightBarG = document.getElementById('weight-bar-G');
         const weightBarB = document.getElementById('weight-bar-B');
@@ -604,175 +596,45 @@
         const thresholdSlider = document.getElementById('thresholdSlider');
         const thresholdValue = document.getElementById('thresholdValue');
         const epochHistoryContainer = document.getElementById('epoch-history-container');
-        
-        // --- INICIALIZACIÓN DE LA PÁGINA ---
-        document.addEventListener('DOMContentLoaded', () => {
-        // === NUEVO: Control de tasa de aprendizaje ===
-        const learningRateSlider = document.getElementById('learningRateSlider');
-        const learningRateValue = document.getElementById('learningRateValue');
-        learningRateSlider.addEventListener('input', () => {
-            // --- CORRECCIÓN: Funciona porque learningRate es 'let' ---
-            learningRate = parseFloat(learningRateSlider.value);
-            learningRateValue.innerText = learningRate.toFixed(3);
-        });
+        const weightsChartContainer = document.getElementById('weights-chart-container');
 
-        // === CORRECCIÓN: Listener del botón de una época ===
-        trainOneEpochButton.addEventListener('click', async () => {
-            if (isTraining) return; // No hacer nada si ya está entrenando
-            isTraining = true;
-            trainButton.disabled = true;
-            trainOneEpochButton.disabled = true;
-
-            if (!trainingInitialized) {
-                setupTraining(); // Inicializar si es la primera vez
-            }
-            
-            await trainOneEpoch(); // Ejecutar una sola época
-            
-            // Reactivar botones
-            trainButton.disabled = false;
-            trainOneEpochButton.disabled = false;
-            isTraining = false;
-        });
-        // --- Fin Corrección ---
-
+        // Inicialización
+        function init() {
             populateTables();
-            init3DPlot(); 
-            trainButton.addEventListener('click', train);
-            colorPicker.addEventListener('input', predict);
-            
-            // --- Listener del Slider Global (ARREGLADO para consistencia) ---
-            thresholdSlider.addEventListener('input', () => {
-                decisionThreshold = parseFloat(thresholdSlider.value);
-                thresholdValue.innerText = decisionThreshold.toFixed(2);
-                
-                for (const epochData of epochHistoryData) {
-                    // --- ARREGLO CLAVE: Usar scores 'inProgress' si existen (para la época actual) ---
-                    const isCurrentEpoch = isTraining && epochHistoryData.length > 0 && epochData === epochHistoryData[0];
-                    const reds = isCurrentEpoch ? epochData.redScoresInProgress : epochData.redScores;
-                    const blues = isCurrentEpoch ? epochData.blueScoresInProgress : epochData.blueScores;
-                    
-                    if (!reds || !blues) continue; // Saltear si aún no hay datos
-
-                    const allScores = reds.map(s => ({sum: s, label: 1}))
-                                        .concat(blues.map(s => ({sum: s, label: -1})));
-
-                    // 1. Recalcular Matriz
-                    const matrixStats = recalculateMatrixStats(reds, blues, decisionThreshold);
-                    // Actualizar el estado de la época (para que la próxima iteración lo vea)
-                    if(isCurrentEpoch) {
-                        epochData.matrixStats = matrixStats;
-                    }
-                    updateMatrixTableUI(epochData.matrixElement, matrixStats);
-                    
-                    // 2. Recalcular RMSE
-                    const rmse = calculateRMSE(allScores);
-                    updateHistoLegend(epochData.histoLegendElement, rmse);
-
-                    // 3. Actualizar línea de umbral
-                    if (epochData.chartInstance) {
-                        epochData.chartInstance.options.plugins.annotation.annotations.thresholdLine.xMin = decisionThreshold;
-                        epochData.chartInstance.options.plugins.annotation.annotations.thresholdLine.xMax = decisionThreshold;
-                        epochData.chartInstance.update('none'); 
-                    }
-                }
-            });
-            
-            // --- Lógica para Mover Panel Flotante ---
-            makeDraggable(document.querySelector('.prediction-controls'));
-            
+            init3DPlot();
+            resetPerceptron();
             updateWeightBars();
             predict();
-        });
-
-        // --- Lógica para Mover Panel Flotante ---
-        function makeDraggable(element) {
-            let isDragging = false;
-            let offsetX = 0;
-            let offsetY = 0;
-
-            element.addEventListener('mousedown', (e) => {
-                if (e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL') return;
-                isDragging = true;
-                const rect = element.getBoundingClientRect();
-                offsetX = e.clientX - rect.left;
-                offsetY = e.clientY - rect.top;
-                element.style.cursor = 'grabbing';
-                element.style.right = 'auto'; 
-                element.style.left = rect.left + 'px';
-                element.style.top = rect.top + 'px';  
-                e.preventDefault(); 
-            });
-            document.addEventListener('mousemove', (e) => {
-                if (!isDragging) return;
-                element.style.left = (e.clientX - offsetX) + 'px';
-                element.style.top = (e.clientY - offsetY) + 'px';
-                e.preventDefault();
-            });
-            document.addEventListener('mouseup', () => {
-                isDragging = false;
-                element.style.cursor = 'grab';
-            });
+            makeDraggable(document.querySelector('.prediction-controls'));
         }
 
-
-        // --- Llenar tablas (Compactas y con Tooltip) ---
+        // Poblar tablas de colores
         function populateTables() {
-            const rojosTbody = document.querySelector('#rojos-table tbody');
-            const rojosThead = document.querySelector('#rojos-table thead');
-            rojosTbody.innerHTML = ''; // Limpiar
-            // Inyectar el header rojo
-            rojosThead.innerHTML = `<tr><th class="rojo-header" colspan="2">🎨 Colores Rojos (Etiqueta: 1)</th></tr>`;
-            
-            const azulesTbody = document.querySelector('#azules-table tbody');
-            const azulesThead = document.querySelector('#azules-table thead');
-            azulesTbody.innerHTML = ''; // Limpiar
-            // Inyectar el header azul
-            azulesThead.innerHTML = `<tr><th class="azul-header" colspan="4">🎨 Colores Azules (Etiqueta: -1)</th></tr>`;
+            const rojos = datos.filter(d => d.label === 1);
+            const azules = datos.filter(d => d.label === -1);
 
-            
-            // Tabla de Rojos (1 columna)
-            const rojos = datos.filter(c => c.label === 1);
-            rojos.forEach(color => {
-                const row = document.createElement('tr');
-                const rgb = `${color.r}, ${color.g}, ${color.b}`;
-                const title = `RGB: (${rgb})`;
-                row.innerHTML = `
-                    <td><div class="color-swatch" style="background-color: rgb(${rgb})" title="${title}"></div></td>
-                    <td>${color.name}</td>
-                `;
-                rojosTbody.appendChild(row);
-            });
-            
-            // Tabla de Azules (2 columnas)
-            const azules = datos.filter(c => c.label === -1);
-            for (let i = 0; i < azules.length; i += 2) {
-                const row = document.createElement('tr');
-                
-                const color1 = azules[i];
-                const rgb1 = `${color1.r}, ${color1.g}, ${color1.b}`;
-                const title1 = `RGB: (${rgb1})`;
-                row.innerHTML += `
-                    <td><div class="color-swatch" style="background-color: rgb(${rgb1})" title="${title1}"></div></td>
-                    <td>${color1.name}</td>
-                `;
-                
-                if (azules[i+1]) {
-                    const color2 = azules[i+1];
-                    const rgb2 = `${color2.r}, ${color2.g}, ${color2.b}`;
-                    const title2 = `RGB: (${rgb2})`;
-                     row.innerHTML += `
-                        <td><div class="color-swatch" style="background-color: rgb(${rgb2})" title="${title2}"></div></td>
-                        <td>${color2.name}</td>
-                    `;
-                } else {
-                    row.innerHTML += `<td></td><td></td>`;
-                }
-                azulesTbody.appendChild(row);
-            }
+            const rojoHeader = `<tr><th class="rojo-header">Nombre</th><th class="rojo-header">R</th><th class="rojo-header">G</th><th class="rojo-header">B</th><th class="rojo-header">Color</th></tr>`;
+            const azulHeader = `<tr><th class="azul-header">Nombre</th><th class="azul-header">R</th><th class="azul-header">G</th><th class="azul-header">B</th><th class="azul-header">Color</th></tr>`;
+
+            rojosTable.querySelector('thead').innerHTML = rojoHeader;
+            azulesTable.querySelector('thead').innerHTML = azulHeader;
+
+            rojosTable.querySelector('tbody').innerHTML = rojos.map(d => `
+                <tr>
+                    <td>${d.name}</td><td>${d.r}</td><td>${d.g}</td><td>${d.b}</td>
+                    <td><span class="color-swatch" style="background-color: ${d.hex};" title="${d.hex}"></span>${d.hex}</td>
+                </tr>
+            `).join('');
+
+            azulesTable.querySelector('tbody').innerHTML = azules.map(d => `
+                <tr>
+                    <td>${d.name}</td><td>${d.r}</td><td>${d.g}</td><td>${d.b}</td>
+                    <td><span class="color-swatch" style="background-color: ${d.hex};" title="${d.hex}"></span>${d.hex}</td>
+                </tr>
+            `).join('');
         }
-        
-        // --- Gráfico 3D con Plotly ---
+
+        // Inicializar gráfico 3D con Plotly
         function init3DPlot() {
             const rojos = datos.filter(d => d.label === 1);
             const azules = datos.filter(d => d.label === -1);
@@ -782,9 +644,11 @@
                 y: rojos.map(d => d.g),
                 z: rojos.map(d => d.b),
                 mode: 'markers',
-                marker: { color: 'rgb(220, 20, 60)', size: 6, opacity: 0.8 },
+                marker: { color: 'red', size: 8, symbol: 'circle', opacity: 0.8 },
                 type: 'scatter3d',
-                name: 'Rojos'
+                name: 'Rojos',
+                text: rojos.map(d => d.name),
+                hoverinfo: 'text+x+y+z'
             };
 
             const traceAzules = {
@@ -792,101 +656,120 @@
                 y: azules.map(d => d.g),
                 z: azules.map(d => d.b),
                 mode: 'markers',
-                marker: { color: 'rgb(30, 144, 255)', size: 6, opacity: 0.8 },
+                marker: { color: 'blue', size: 8, symbol: 'circle', opacity: 0.8 },
                 type: 'scatter3d',
-                name: 'Azules'
+                name: 'Azules',
+                text: azules.map(d => d.name),
+                hoverinfo: 'text+x+y+z'
             };
 
             const layout = {
-                title: 'Espacio de Color RGB',
+                margin: { l: 0, r: 0, b: 0, t: 0 },
                 scene: {
-                    xaxis: {title: 'Rojo (R)'},
-                    yaxis: {title: 'Verde (G)'},
-                    zaxis: {title: 'Azul (B)'},
-                },
-                margin: { l: 0, r: 0, b: 0, t: 40 }
+                    xaxis: { title: 'R' },
+                    yaxis: { title: 'G' },
+                    zaxis: { title: 'B' }
+                }
             };
 
-            Plotly.newPlot('plot-3d', [traceRojos, traceAzules], layout, {responsive: true});
-        }
-        
-        // --- FUNCIONES DE VISUALIZACIÓN (Animación) ---
-        function updateInputBars(inputs) {
-            inputBarR.style.width = (inputs[0] * 100) + '%';
-            inputBarG.style.width = (inputs[1] * 100) + '%';
-            inputBarB.style.width = (inputs[2] * 100) + '%';
-        }
-        function updateWeightBars() {
-            [weights[0], weights[1], weights[2]].forEach((weight, i) => {
-                const bar = [weightBarR, weightBarG, weightBarB][i];
-                const text = [weightValueR, weightValueG, weightValueB][i];
-                let scaledWeight = (weight / maxWeightDisplay) * 50;
-                scaledWeight = Math.max(-50, Math.min(50, scaledWeight)); 
-                if (scaledWeight > 0) {
-                    bar.style.left = '50%';
-                    bar.style.width = scaledWeight + '%';
-                    bar.style.backgroundColor = '#2ecc71';
-                } else {
-                    bar.style.left = (50 + scaledWeight) + '%';
-                    bar.style.width = -scaledWeight + '%';
-                    bar.style.backgroundColor = '#e74c3c';
-                }
-                text.innerText = weight.toFixed(3);
-            });
-            biasValue.innerText = bias.toFixed(3);
-        }
-        function showFloatingText(container, value) {
-            if (parseInt(speedSlider.value, 10) < 100 || Math.abs(value) < 0.0001) return;
-            const textEl = document.createElement('div');
-            textEl.className = 'floating-text';
-            if (value > 0) {
-                textEl.innerText = `+${value.toFixed(4)}`;
-                textEl.classList.add('positive');
-            } else {
-                textEl.innerText = `${value.toFixed(4)}`;
-                textEl.classList.add('negative');
-            }
-            container.appendChild(textEl);
-            textEl.addEventListener('animationend', () => textEl.remove());
+            Plotly.newPlot('plot-3d', [traceRojos, traceAzules], layout);
         }
 
-        // --- Función de Confianza Sigmoide (sin cambios) ---
-        function calculateConfidenceSigmoid(sum) {
-            const probabilityRed = 1 / (1 + Math.exp(-sum));
-            let confidencePercent;
-            if (sum >= 0) {
-                confidencePercent = probabilityRed * 100;
-            } else {
-                confidencePercent = (1 - probabilityRed) * 100;
+        // Hacer draggable el panel de predicción
+        function makeDraggable(element) {
+            let posX = 0, posY = 0, offsetX = 0, offsetY = 0;
+            element.onmousedown = dragMouseDown;
+
+            function dragMouseDown(e) {
+                e.preventDefault();
+                offsetX = e.clientX - element.getBoundingClientRect().left;
+                offsetY = e.clientY - element.getBoundingClientRect().top;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
             }
-            return confidencePercent.toFixed(0);
+
+            function elementDrag(e) {
+                e.preventDefault();
+                posX = e.clientX - offsetX;
+                posY = e.clientY - offsetY;
+                element.style.top = `${posY}px`;
+                element.style.left = `${posX}px`;
+                element.style.right = 'auto';
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
         }
 
-        async function animateTrainingStep(data, inputs, sum, prediction, misclassified) {
-            currentColorName.innerText = data.name;
-            currentColorSwatch.style.backgroundColor = data.hex;
-            updateInputBars(inputs);
+        // Resetear perceptrón
+        function resetPerceptron() {
+            weights = [Math.random() * 0.1 - 0.05, Math.random() * 0.1 - 0.05, Math.random() * 0.1 - 0.05];
+            bias = Math.random() * 0.1 - 0.05;
             updateWeightBars();
-            sumValue.innerText = sum.toFixed(3);
-            const confidence = calculateConfidenceSigmoid(sum);
-            if (prediction === 1) {
-                neuronPrediction.innerText = "ROJO";
-                neuronPrediction.className = 'io-circle predict-red';
-            } else {
-                neuronPrediction.innerText = "AZUL";
-                neuronPrediction.className = 'io-circle predict-blue';
-            }
-            trainPredictionConfidence.innerText = `(${confidence}%)`;
-            feedbackMessage.innerHTML = `Etiqueta Real: <strong>${data.label === 1 ? 'ROJO' : 'AZUL'}</strong>. `;
-            if (misclassified) {
-                feedbackMessage.innerHTML += `¡Error! Ajustando...`;
-                feedbackMessage.className = 'error-message';
-            } else {
-                feedbackMessage.innerHTML += `¡Correcto!`;
-                feedbackMessage.className = 'correct-message';
-            }
         }
-        
+
+        // Actualizar barras de pesos
+        function updateWeightBars() {
+            const bars = [weightBarR, weightBarG, weightBarB];
+            const values = [weightValueR, weightValueG, weightValueB];
+            const colors = ['#e74c3c', '#2ecc71', '#3498db'];
+
+            weights.forEach((w, i) => {
+                const normalized = w / maxWeightDisplay;
+                if (normalized >= 0) {
+                    bars[i].style.left = '50%';
+                    bars[i].style.width = `${Math.min(normalized * 50, 50)}%`;
+                    bars[i].style.backgroundColor = colors[i];
+                } else {
+                    bars[i].style.right = '50%';
+                    bars[i].style.left = 'auto';
+                    bars[i].style.width = `${Math.min(Math.abs(normalized) * 50, 50)}%`;
+                    bars[i].style.backgroundColor = '#bdc3c7';
+                }
+                values[i].innerText = w.toFixed(2);
+            });
+            biasValue.innerText = bias.toFixed(2);
+        }
+
+        // Mostrar texto flotante
+        function showFloatingText(container, delta) {
+            const text = document.createElement('div');
+            text.className = `floating-text ${delta > 0 ? 'positive' : 'negative'}`;
+            text.innerText = (delta > 0 ? '+' : '') + delta.toFixed(2);
+            container.appendChild(text);
+            setTimeout(() => text.remove(), 3000);
+        }
+
+        // Calcular confianza con sigmoide
+        function calculateConfidenceSigmoid(sum) {
+            const sigmoid = 1 / (1 + Math.exp(-sum * 5));
+            return Math.round(Math.abs(sigmoid - 0.5) * 200);
+        }
+
+        // Animar paso de entrenamiento
+        async function animateTrainingStep(data, inputs, sum, prediction, misclassified) {
+            currentColorSwatch.style.backgroundColor = data.hex;
+            currentColorName.innerText = data.name;
+
+            inputBarRValue.style.width = `${inputs[0] * 100}%`;
+            inputBarGValue.style.width = `${inputs[1] * 100}%`;
+            inputBarBValue.style.width = `${inputs[2] * 100}%`;
+
+            sumValue.innerText = sum.toFixed(2);
+
+            neuronPrediction.classList.remove('predict-red', 'predict-blue');
+            neuronPrediction.classList.add(prediction === 1 ? 'predict-red' : 'predict-blue');
+            neuronPrediction.innerHTML = prediction === 1 ? 'Rojo' : 'Azul';
+            trainPredictionConfidence.innerText = `(${calculateConfidenceSigmoid(sum)}%)`;
+
+            feedbackMessage.innerText = misclassified ? '¡Error! Ajustando pesos...' : '¡Correcto!';
+            feedbackMessage.className = misclassified ? 'error-message' : 'correct-message';
+
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
+
         // --- FUNCIONES: Matriz, Histograma e Historial ---
         
         function incrementConfusionMatrixStats(matrixStats, label, prediction) {
@@ -967,7 +850,7 @@
             }
         }
 
-        // --- CORRECCIÓN: Histograma usa rangos [inicio, fin] en el eje X ---
+        // --- CORRECCIÓN: Histograma usa centros de bin para x (número simple) ---
         function binScoresForLinearAxis(scores) {
             let bins = new Array(HISTO_BINS).fill(0);
             for (const score of scores) {
@@ -975,42 +858,33 @@
                 binIndex = Math.max(0, Math.min(HISTO_BINS - 1, binIndex)); 
                 bins[binIndex]++;
             }
-            // Mapear a rangos [inicio, fin] para el eje X
-            return bins.map((count, i) => {
-                const binStart = HISTO_MIN + (i * HISTO_STEP);
-                const binEnd = binStart + HISTO_STEP;
-                return {
-                    x: [binStart, binEnd], // Usar un array [min, max] para la barra
-                    y: count
-                };
-            });
+            return bins.map((count, i) => ({
+                x: HISTO_MIN + (i * HISTO_STEP) + (HISTO_STEP / 2), // Centro del bin
+                y: count
+            }));
         }
 
-        // --- CORRECCIÓN: createChartJsHistogram (eliminado barThickness) ---
+        // --- CORRECCIÓN: createChartJsHistogram (añadir barThickness, remover propiedades incompatibles) ---
         function createChartJsHistogram(canvasElement, threshold) {
             const ctx = canvasElement.getContext('2d');
-            return new Chart(ctx, {
+            const chart = new Chart(ctx, {
                 type: 'bar',
-                // --- barPercentage y categoryPercentage eliminados (son para escalas 'category') ---
                 data: {
                     datasets: [
-                        // --- barThickness eliminado ---
-                        { label: 'Rojos', data: [], backgroundColor: 'rgba(231, 76, 60, 0.7)' }, 
-                        { label: 'Azules', data: [], backgroundColor: 'rgba(52, 152, 219, 0.7)' }
+                        { label: 'Rojos', data: [], backgroundColor: 'rgba(231, 76, 60, 0.7)', barThickness: 10 },
+                        { label: 'Azules', data: [], backgroundColor: 'rgba(52, 152, 219, 0.7)', barThickness: 10 }
                     ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    barPercentage: 1.0,
-                    categoryPercentage: 1.0,
                     animation: false,
                     scales: {
                         x: { 
                             type: 'linear', 
                             min: HISTO_MIN,
                             max: HISTO_MAX,
-                            // stacked: true // No es necesario para 'linear'
+                            stacked: true
                         },
                         y: {
                             stacked: true,
@@ -1020,13 +894,6 @@
                     plugins: {
                         tooltip: {
                             callbacks: { 
-                                // Tooltip debe manejar el array 'x'
-                                title: function(context) {
-                                    if (context[0].raw.x) {
-                                        return `Rango: ${context[0].raw.x[0].toFixed(2)} a ${context[0].raw.x[1].toFixed(2)}`;
-                                    }
-                                    return '';
-                                },
                                 label: function(context) { 
                                     return `${context.dataset.label}: ${Math.abs(context.raw.y)}`; 
                                 } 
@@ -1047,8 +914,22 @@
                     }
                 }
             });
+            adjustHistogramBarThickness(chart); // Ajustar ancho dinámico
+            return chart;
         }
-        // --- Fin Corrección ---
+
+        // --- NUEVA: Función para ajustar barThickness dinámicamente (de la versión vieja) ---
+        function adjustHistogramBarThickness(chart) {
+            if (!chart || !chart.canvas) return;
+            const canvas = chart.canvas;
+            const area = chart.chartArea;
+            let drawableWidth = (area && area.right && area.left) ? (area.right - area.left) : canvas.width;
+            const binFraction = HISTO_STEP / (HISTO_MAX - HISTO_MIN);
+            const binPixelWidth = Math.max(2, Math.floor(drawableWidth * binFraction));
+            const px = Math.max(2, Math.floor(binPixelWidth * 0.9));
+            chart.data.datasets.forEach(ds => ds.barThickness = px);
+            try { chart.update('none'); } catch(e) { /* ignore */ }
+        }
 
         // Crea una entrada en el historial (con leyendas y TH coloreados)
         function createNewHistoryEntry(epoch, threshold) {
@@ -1411,6 +1292,38 @@
             const luminosity = (0.2126 * r + 0.7152 * g + 0.0722 * b);
             return luminosity < 140;
         }
+
+        // Eventos
+        document.addEventListener('DOMContentLoaded', init);
+        trainButton.addEventListener('click', train);
+        trainOneEpochButton.addEventListener('click', trainOneEpoch);
+        learningRateSlider.addEventListener('input', () => {
+            learningRate = parseFloat(learningRateSlider.value);
+            learningRateValue.innerText = learningRate.toFixed(3);
+        });
+        thresholdSlider.addEventListener('input', () => {
+            decisionThreshold = parseFloat(thresholdSlider.value);
+            thresholdValue.innerText = decisionThreshold.toFixed(2);
+            // Recalcular matrices e histogramas para todas las épocas
+            epochHistoryData.forEach(epochData => {
+                const reds = epochData.redScores || epochData.redScoresInProgress || [];
+                const blues = epochData.blueScores || epochData.blueScoresInProgress || [];
+                const matrixStats = recalculateMatrixStats(reds, blues, decisionThreshold);
+                updateMatrixTableUI(epochData.matrixElement, matrixStats);
+                const allScores = reds.map(s => ({sum: s, label: 1})).concat(blues.map(s => ({sum: s, label: -1})));
+                const rmse = calculateRMSE(allScores);
+                updateHistoLegend(epochData.histoLegendElement, rmse);
+                if (epochData.chartInstance) {
+                    epochData.chartInstance.options.plugins.annotation.annotations.thresholdLine.xMin = decisionThreshold;
+                    epochData.chartInstance.options.plugins.annotation.annotations.thresholdLine.xMax = decisionThreshold;
+                    epochData.chartInstance.update('none');
+                }
+            });
+        });
+        colorPicker.addEventListener('input', predict);
+        window.addEventListener('resize', () => {
+            epochHistoryData.forEach(data => adjustHistogramBarThickness(data.chartInstance));
+        });
 
     </script>
 </body>
