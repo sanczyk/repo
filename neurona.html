@@ -1212,9 +1212,12 @@
                 predict(); 
                 
                 const delay = parseInt(speedSlider.value, 10);
+                // Sin el if, un 'await' con setTimeout(0) actúa como un "yield", dándole
+                // al navegador el tiempo justo para renderizar las actualizaciones de la UI.
                 if (delay > 0) {
                     await new Promise(resolve => setTimeout(resolve, delay));
                 }
+
             } // Fin del bucle for (colores)
             
             // Calcular diferencias para el chequeo de estabilidad
@@ -1225,7 +1228,14 @@
             currentEpochData.weights = [...weights];
             currentEpochData.bias = bias;
             
-            const { redScores, blueScores, allScores } = getAllScores(currentEpochData.weights, currentEpochData.bias);
+            // FIX: Usar los scores acumulados progresivamente como los scores finales.
+            // No recalcular con getAllScores() para evitar el "salto" visual.
+            //const { redScores, blueScores, allScores } = getAllScores(currentEpochData.weights, currentEpochData.bias);
+            const redScores = currentEpochData.redScoresInProgress;
+            const blueScores = currentEpochData.blueScoresInProgress;
+            const allScores = redScores.map(s => ({sum: s, label: 1}))
+                                .concat(blueScores.map(s => ({sum: s, label: -1})))
+            
             currentEpochData.redScores = redScores;
             currentEpochData.blueScores = blueScores;
             
